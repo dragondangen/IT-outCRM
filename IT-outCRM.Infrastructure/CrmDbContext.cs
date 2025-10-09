@@ -1,0 +1,37 @@
+﻿using IT_outCRM.Domain.Entity;
+using Microsoft.EntityFrameworkCore;
+using System.Reflection;
+
+namespace IT_outCRM.Infrastructure
+{
+    public class CrmDbContext : DbContext
+    {
+        public CrmDbContext(DbContextOptions<CrmDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<Account> Accounts { get; set; }
+
+        public DbSet<AccountStatus> AccountsStatus { get; set; }
+
+        public DbSet<Admin> Admins { get; set; }
+
+        public DbSet<Company> Companies { get; set; }
+
+        public DbSet<Customer> Customers { get; set; }
+
+        public DbSet<Executor> Executors { get; set; }
+
+        public DbSet<Order> Orders { get; set; }
+
+        public DbSet<OrderStatus> orderStatuses { get; set; }
+
+        public DbSet<OrderSupportTeam> orderSupportTeams { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        }
+    }
+}
