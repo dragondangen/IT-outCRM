@@ -2,9 +2,9 @@
 {
     public class Admin
     {
-        public Guid Id { get; set; }
-        public string Name { get; set; }
-        public Account Account { get; set; }
-        public Guid AccountId { get; set; }
+        public Guid Id { get; private set; }
+        public string Name { get; private set; } = string.Empty;
+        public Account? Account { get; private set; }
+        public Guid AccountId { get; private set; }
     }
 }

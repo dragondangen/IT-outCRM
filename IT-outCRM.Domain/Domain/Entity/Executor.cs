@@ -2,9 +2,9 @@
 {
     public class Executor
     {
-        public Guid Id { get; set; }
-        public int CompletedOrders { get; set; }
-        public Account Account { get; set; }
-        public Guid AccountId { get; set; }
+        public Guid Id { get; private set; }
+        public int CompletedOrders { get; private set; }
+        public Account? Account { get; private set; }
+        public Guid AccountId { get; private set; }
     }
 }

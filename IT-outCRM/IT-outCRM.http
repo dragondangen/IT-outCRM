@@ -1,0 +1,6 @@
+@IT_outCRM_HostAddress = http://localhost:5295
+
+GET {{IT_outCRM_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

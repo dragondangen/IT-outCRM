@@ -2,13 +2,13 @@
 {
     public class ContactPerson
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string? SurName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
-        public string Role { get; set; }
+        public Guid Id { get; private set; }
+        public string Name { get; private set; } = string.Empty;
+        public string FirstName { get; private set; } = string.Empty;
+        public string LastName { get; private set; } = string.Empty;
+        public string SurName { get; private set; } = string.Empty;
+        public string Email { get; private set; } = string.Empty;
+        public string PhoneNumber { get; private set; } = string.Empty;
+        public string Role { get; private set; } = string.Empty;
     }
 }

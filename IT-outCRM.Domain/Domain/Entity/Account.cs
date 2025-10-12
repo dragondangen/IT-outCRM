@@ -2,10 +2,10 @@
 {
     public class Account
     {
-        public Guid Id { get; set; }
-        public string CompanyName { get; set; }
-        public DateTime FoundingDate { get; set; }
-        public AccountStatus AccountStatus { get; set; }
-        public int AccountStatusId { get; set; }
+        public Guid Id { get; private set; }
+        public string CompanyName { get; private set; } = string.Empty;
+        public DateTime FoundingDate { get; private set; }
+        public AccountStatus? AccountStatus { get; private set; }
+        public int AccountStatusId { get;private set; }
     }
 }
