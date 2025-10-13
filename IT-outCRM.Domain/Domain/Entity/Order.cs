@@ -20,6 +20,6 @@
 
         public OrderStatus? OrderStatus { get; set; }
 
-        public int OrderStatusId { get; set; }
+        public Guid OrderStatusId { get; set; }
     }
 }

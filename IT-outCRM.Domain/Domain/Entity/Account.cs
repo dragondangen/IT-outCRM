@@ -10,6 +10,6 @@
 
         public AccountStatus? AccountStatus { get; set; }
 
-        public int AccountStatusId { get; set; }
+        public Guid AccountStatusId { get; set; }
     }
 }
