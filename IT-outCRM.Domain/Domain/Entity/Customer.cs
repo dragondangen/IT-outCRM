@@ -2,8 +2,10 @@
 {
     public class Customer
     {
-        public Guid Id { get;private set; }
-        public Account? Account { get; private set; }
-        public Guid AccountId { get; private set; }
+        public Guid Id { get; set; }
+
+        public Account? Account { get; set; }
+
+        public Guid AccountId { get; set; }
     }
 }

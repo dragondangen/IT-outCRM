@@ -2,8 +2,10 @@
 {
     public class OrderSupportTeam
     {
-        public Guid Id { get; private set; }
-        public Admin? Admin { get; private set; }
-        public Guid AdminId { get; private set; }
+        public Guid Id { get; set; }
+
+        public Admin? Admin { get; set; }
+
+        public Guid AdminId { get; set; }
     }
 }

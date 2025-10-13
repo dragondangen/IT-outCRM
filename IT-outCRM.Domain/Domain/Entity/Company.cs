@@ -2,9 +2,12 @@
 {
     public class Company
     {
-        public Guid Id { get; private set; }
-        public string Name { get; private set; } = string.Empty;
-        public string Inn { get; private set; } = string.Empty;
-        public string LegalForm { get; private set; } = string.Empty;
+        public Guid Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public string Inn { get; set; } = string.Empty;
+
+        public string LegalForm { get; set; } = string.Empty;
     }
 }
