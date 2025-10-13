@@ -1,5 +1,5 @@
 <Solution>
   <Project Path="IT-outCRM.Domain/IT-outCRM.Domain.csproj" />
   <Project Path="IT-outCRM.Infrastructure/IT-outCRM.Infrastructure.csproj" />
-  <Project Path="IT-outCRM\IT-outCRM.csproj" Type="Classic C#" />
+  <Project Path="IT-outCRM\IT-outCRM.csproj" />
 </Solution>
