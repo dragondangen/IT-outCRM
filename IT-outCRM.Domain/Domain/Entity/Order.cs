@@ -21,5 +21,9 @@
         public OrderStatus? OrderStatus { get; set; }
 
         public Guid OrderStatusId { get; set; }
+
+        public OrderSupportTeam? SupportTeam { get; set; }
+
+        public Guid SupportTeamId { get; set; }
     }
 }

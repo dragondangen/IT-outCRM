@@ -16,6 +16,11 @@ namespace IT_outCRM.Infrastructure.Mappings
                 .WithMany()
                 .HasForeignKey(x => x.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.Company)
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

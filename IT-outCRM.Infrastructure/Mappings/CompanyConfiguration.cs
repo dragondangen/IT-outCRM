@@ -23,6 +23,11 @@ namespace IT_outCRM.Infrastructure.Mappings
                 
             builder.HasIndex(x => x.Inn)
                 .IsUnique();
+
+            builder.HasOne(x => x.ContactPerson)
+                .WithMany()
+                .HasForeignKey(x => x.ContactPersonID)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

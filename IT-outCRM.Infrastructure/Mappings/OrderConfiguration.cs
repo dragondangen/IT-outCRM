@@ -43,6 +43,11 @@ namespace IT_outCRM.Infrastructure.Mappings
                 .WithMany()
                 .HasForeignKey(x => x.OrderStatusId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.SupportTeam)
+                .WithMany()
+                .HasForeignKey(x => x.SupportTeamId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

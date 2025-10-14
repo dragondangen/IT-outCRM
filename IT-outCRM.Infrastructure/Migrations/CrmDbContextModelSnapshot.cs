@@ -92,6 +92,9 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ContactPersonID")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Inn")
                         .IsRequired()
                         .HasMaxLength(12)
@@ -108,6 +111,8 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContactPersonID");
 
                     b.HasIndex("Inn")
                         .IsUnique();
@@ -173,9 +178,14 @@ namespace IT_outCRM.Infrastructure.Migrations
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("Customers");
                 });
@@ -189,12 +199,17 @@ namespace IT_outCRM.Infrastructure.Migrations
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("CompletedOrders")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("Executors");
                 });
@@ -228,6 +243,9 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<Guid>("SupportTeamId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
@@ -235,6 +253,8 @@ namespace IT_outCRM.Infrastructure.Migrations
                     b.HasIndex("ExecutorId");
 
                     b.HasIndex("OrderStatusId");
+
+                    b.HasIndex("SupportTeamId");
 
                     b.ToTable("Orders");
                 });
@@ -296,6 +316,17 @@ namespace IT_outCRM.Infrastructure.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("IT_outCRM.Domain.Entity.Company", b =>
+                {
+                    b.HasOne("IT_outCRM.Domain.Entity.ContactPerson", "ContactPerson")
+                        .WithMany()
+                        .HasForeignKey("ContactPersonID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ContactPerson");
+                });
+
             modelBuilder.Entity("IT_outCRM.Domain.Entity.Customer", b =>
                 {
                     b.HasOne("IT_outCRM.Domain.Entity.Account", "Account")
@@ -304,7 +335,15 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("IT_outCRM.Domain.Entity.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Account");
+
+                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("IT_outCRM.Domain.Entity.Executor", b =>
@@ -315,7 +354,15 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("IT_outCRM.Domain.Entity.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Account");
+
+                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("IT_outCRM.Domain.Entity.Order", b =>
@@ -338,11 +385,19 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("IT_outCRM.Domain.Entity.OrderSupportTeam", "SupportTeam")
+                        .WithMany()
+                        .HasForeignKey("SupportTeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Customer");
 
                     b.Navigation("Executor");
 
                     b.Navigation("OrderStatus");
+
+                    b.Navigation("SupportTeam");
                 });
 
             modelBuilder.Entity("IT_outCRM.Domain.Entity.OrderSupportTeam", b =>

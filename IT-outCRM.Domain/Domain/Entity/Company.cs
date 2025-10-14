@@ -9,5 +9,9 @@
         public string Inn { get; set; } = string.Empty;
 
         public string LegalForm { get; set; } = string.Empty;
+
+        public ContactPerson? ContactPerson { get; set; }
+
+        public Guid ContactPersonID { get; set; }
     }
 }
