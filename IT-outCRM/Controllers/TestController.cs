@@ -17,5 +17,23 @@ namespace IT_outCRM.Controllers
         {
             return Ok("База данных подключена!");
         }
+
+        [HttpGet("test-error")]
+        public IActionResult TestError()
+        {
+            throw new Exception("Это тестовая ошибка для проверки глобального обработчика исключений");
+        }
+
+        [HttpGet("test-not-found")]
+        public IActionResult TestNotFound()
+        {
+            throw new KeyNotFoundException("Тестовый ресурс не найден");
+        }
+
+        [HttpGet("test-bad-request")]
+        public IActionResult TestBadRequest()
+        {
+            throw new ArgumentException("Тестовые неверные параметры");
+        }
     }
 }

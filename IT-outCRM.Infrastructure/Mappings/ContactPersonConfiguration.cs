@@ -9,10 +9,6 @@ namespace IT_outCRM.Infrastructure.Mappings
         {
             builder.HasKey(x => x.Id);
             
-            builder.Property(x => x.Name)
-                .IsRequired()
-                .HasMaxLength(200);
-                
             builder.Property(x => x.FirstName)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -21,7 +17,7 @@ namespace IT_outCRM.Infrastructure.Mappings
                 .IsRequired()
                 .HasMaxLength(100);
                 
-            builder.Property(x => x.SurName)
+            builder.Property(x => x.MiddleName)
                 .HasMaxLength(100);
                 
             builder.Property(x => x.Email)
@@ -38,6 +34,9 @@ namespace IT_outCRM.Infrastructure.Mappings
                 
             builder.HasIndex(x => x.Email)
                 .IsUnique();
+
+            // Игнорируем вычисляемое свойство FullName при маппинге
+            builder.Ignore(x => x.FullName);
         }
     }
 }

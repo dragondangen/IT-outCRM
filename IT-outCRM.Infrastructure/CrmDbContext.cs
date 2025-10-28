@@ -12,7 +12,7 @@ namespace IT_outCRM.Infrastructure
 
         public DbSet<Account> Accounts { get; set; }
 
-        public DbSet<AccountStatus> AccountsStatus { get; set; }
+        public DbSet<AccountStatus> AccountStatuses { get; set; }
 
         public DbSet<Admin> Admins { get; set; }
 
@@ -24,9 +24,11 @@ namespace IT_outCRM.Infrastructure
 
         public DbSet<Order> Orders { get; set; }
 
-        public DbSet<OrderStatus> orderStatuses { get; set; }
+        public DbSet<OrderStatus> OrderStatuses { get; set; }
 
-        public DbSet<OrderSupportTeam> orderSupportTeams { get; set; }
+        public DbSet<OrderSupportTeam> OrderSupportTeams { get; set; }
+
+        public DbSet<User> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

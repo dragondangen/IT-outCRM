@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IT-outCRM.Domain\IT-outCRM.Domain.csproj" />
+    <ProjectReference Include="..\IT-outCRM.Application\IT-outCRM.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

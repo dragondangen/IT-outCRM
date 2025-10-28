@@ -1,0 +1,34 @@
+using FluentValidation;
+using IT_outCRM.Application.DTOs.Order;
+
+namespace IT_outCRM.Application.Validators.Order
+{
+    public class CreateOrderValidator : AbstractValidator<CreateOrderDto>
+    {
+        public CreateOrderValidator()
+        {
+            RuleFor(x => x.Name)
+                .NotEmpty().WithMessage("Название заказа обязательно")
+                .MaximumLength(200).WithMessage("Название заказа не должно превышать 200 символов");
+
+            RuleFor(x => x.Description)
+                .MaximumLength(1000).WithMessage("Описание не должно превышать 1000 символов");
+
+            RuleFor(x => x.Price)
+                .GreaterThan(0).WithMessage("Цена должна быть больше 0");
+
+            RuleFor(x => x.CustomerId)
+                .NotEmpty().WithMessage("ID клиента обязателен");
+
+            RuleFor(x => x.ExecutorId)
+                .NotEmpty().WithMessage("ID исполнителя обязателен");
+
+            RuleFor(x => x.OrderStatusId)
+                .NotEmpty().WithMessage("ID статуса заказа обязателен");
+
+            RuleFor(x => x.SupportTeamId)
+                .NotEmpty().WithMessage("ID команды поддержки обязателен");
+        }
+    }
+}
+

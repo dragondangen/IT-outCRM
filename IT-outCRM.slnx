@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="IT-outCRM.Application/IT-outCRM.Application.csproj" Id="378d63dd-ca17-4a3c-9e8f-1db0ce92bef6" />
   <Project Path="IT-outCRM.Domain/IT-outCRM.Domain.csproj" />
   <Project Path="IT-outCRM.Infrastructure/IT-outCRM.Infrastructure.csproj" />
   <Project Path="IT-outCRM\IT-outCRM.csproj" />

@@ -1,0 +1,21 @@
+using IT_outCRM.Application.Interfaces.Repositories;
+
+namespace IT_outCRM.Application.Interfaces
+{
+    public interface IUnitOfWork : IDisposable
+    {
+        IAccountRepository Accounts { get; }
+        IOrderRepository Orders { get; }
+        ICustomerRepository Customers { get; }
+        ICompanyRepository Companies { get; }
+        IExecutorRepository Executors { get; }
+        IContactPersonRepository ContactPersons { get; }
+        IUserRepository Users { get; }
+        
+        Task<int> SaveChangesAsync();
+        Task BeginTransactionAsync();
+        Task CommitTransactionAsync();
+        Task RollbackTransactionAsync();
+    }
+}
+
