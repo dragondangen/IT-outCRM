@@ -91,7 +91,7 @@ IT-outCRM (API) ─────┐
 - **ASP.NET Core** - Web API
 - **C# 13** - язык программирования
 
-### Базa данных:
+### СУБД и ORM:
 - **PostgreSQL 17** - основная СУБД
 - **Entity Framework Core 9.0** - ORM
 - **Npgsql 9.0.4** - драйвер PostgreSQL для .NET
