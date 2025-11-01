@@ -17,6 +17,7 @@ namespace IT_outCRM.Application
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
             // Services
+            services.AddScoped<IEntityValidationService, EntityValidationService>();
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<ICustomerService, CustomerService>();

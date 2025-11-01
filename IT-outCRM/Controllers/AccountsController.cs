@@ -6,18 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IT_outCRM.Controllers
 {
-    [Authorize]
-    [ApiController]
     [Route("api/[controller]")]
-    public class AccountsController : ControllerBase
+    public class AccountsController : BaseController
     {
         private readonly IAccountService _accountService;
-        private readonly ILogger<AccountsController> _logger;
 
         public AccountsController(IAccountService accountService, ILogger<AccountsController> logger)
+            : base(logger)
         {
             _accountService = accountService;
-            _logger = logger;
         }
 
         /// <summary>
@@ -47,8 +44,9 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<AccountDto>> GetById(Guid id)
         {
             var account = await _accountService.GetByIdAsync(id);
-            if (account == null)
-                return NotFound($"Аккаунт с ID {id} не найден");
+            var notFoundResult = HandleNotFound<AccountDto>(account, id, "Аккаунт");
+            if (notFoundResult != null)
+                return notFoundResult;
 
             return Ok(account);
         }
@@ -61,7 +59,7 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<AccountDto>> Create([FromBody] CreateAccountDto createDto)
         {
             var account = await _accountService.CreateAsync(createDto);
-            _logger.LogInformation("Создан аккаунт: {AccountName}", account.CompanyName);
+            LogCreated(account, account.Id, "Аккаунт");
             return CreatedAtAction(nameof(GetById), new { id = account.Id }, account);
         }
 
@@ -72,11 +70,12 @@ namespace IT_outCRM.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<AccountDto>> Update(Guid id, [FromBody] UpdateAccountDto updateDto)
         {
-            if (id != updateDto.Id)
-                return BadRequest("ID в URL не совпадает с ID в теле запроса");
+            var validationResult = ValidateUpdateId<AccountDto>(id, updateDto.Id);
+            if (validationResult != null)
+                return validationResult;
 
             var account = await _accountService.UpdateAsync(updateDto);
-            _logger.LogInformation("Обновлён аккаунт: {AccountId}", id);
+            LogUpdated(id, "Аккаунт");
             return Ok(account);
         }
 
@@ -88,7 +87,7 @@ namespace IT_outCRM.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             await _accountService.DeleteAsync(id);
-            _logger.LogInformation("Удалён аккаунт: {AccountId}", id);
+            LogDeleted(id, "Аккаунт");
             return NoContent();
         }
 

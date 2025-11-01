@@ -6,18 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IT_outCRM.Controllers
 {
-    [Authorize]
-    [ApiController]
     [Route("api/[controller]")]
-    public class ContactPersonsController : ControllerBase
+    public class ContactPersonsController : BaseController
     {
         private readonly IContactPersonService _contactPersonService;
-        private readonly ILogger<ContactPersonsController> _logger;
 
         public ContactPersonsController(IContactPersonService contactPersonService, ILogger<ContactPersonsController> logger)
+            : base(logger)
         {
             _contactPersonService = contactPersonService;
-            _logger = logger;
         }
 
         /// <summary>
@@ -47,8 +44,9 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<ContactPersonDto>> GetById(Guid id)
         {
             var contactPerson = await _contactPersonService.GetByIdAsync(id);
-            if (contactPerson == null)
-                return NotFound($"Контактное лицо с ID {id} не найдено");
+            var notFoundResult = HandleNotFound<ContactPersonDto>(contactPerson, id, "Контактное лицо");
+            if (notFoundResult != null)
+                return notFoundResult;
 
             return Ok(contactPerson);
         }
@@ -61,7 +59,7 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<ContactPersonDto>> Create([FromBody] CreateContactPersonDto createDto)
         {
             var contactPerson = await _contactPersonService.CreateAsync(createDto);
-            _logger.LogInformation("Создано контактное лицо: {FirstName} {LastName}", contactPerson.FirstName, contactPerson.LastName);
+            LogCreated(contactPerson, contactPerson.Id, "Контактное лицо");
             return CreatedAtAction(nameof(GetById), new { id = contactPerson.Id }, contactPerson);
         }
 
@@ -72,11 +70,12 @@ namespace IT_outCRM.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<ContactPersonDto>> Update(Guid id, [FromBody] UpdateContactPersonDto updateDto)
         {
-            if (id != updateDto.Id)
-                return BadRequest("ID в URL не совпадает с ID в теле запроса");
+            var validationResult = ValidateUpdateId<ContactPersonDto>(id, updateDto.Id);
+            if (validationResult != null)
+                return validationResult;
 
             var contactPerson = await _contactPersonService.UpdateAsync(updateDto);
-            _logger.LogInformation("Обновлено контактное лицо: {ContactPersonId}", id);
+            LogUpdated(id, "Контактное лицо");
             return Ok(contactPerson);
         }
 
@@ -88,7 +87,7 @@ namespace IT_outCRM.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             await _contactPersonService.DeleteAsync(id);
-            _logger.LogInformation("Удалено контактное лицо: {ContactPersonId}", id);
+            LogDeleted(id, "Контактное лицо");
             return NoContent();
         }
 

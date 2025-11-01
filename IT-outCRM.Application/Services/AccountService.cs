@@ -1,92 +1,58 @@
 using AutoMapper;
 using IT_outCRM.Application.DTOs.Account;
-using IT_outCRM.Application.DTOs.Common;
 using IT_outCRM.Application.Interfaces;
+using IT_outCRM.Application.Interfaces.Repositories;
 using IT_outCRM.Application.Interfaces.Services;
 using IT_outCRM.Domain.Entity;
 
 namespace IT_outCRM.Application.Services
 {
-    public class AccountService : IAccountService
+    /// <summary>
+    /// Сервис для работы с аккаунтами
+    /// Наследуется от BaseService для устранения дублирования кода (DRY)
+    /// </summary>
+    public class AccountService : BaseService<Account, AccountDto, CreateAccountDto, UpdateAccountDto>, IAccountService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly IAccountRepository _accountRepository;
 
-        public AccountService(IUnitOfWork unitOfWork, IMapper mapper)
+        public AccountService(IUnitOfWork unitOfWork, IMapper mapper) 
+            : base(unitOfWork, mapper)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _accountRepository = unitOfWork.Accounts;
         }
 
-        public async Task<AccountDto?> GetByIdAsync(Guid id)
+        protected override IGenericRepository<Account> Repository => _accountRepository;
+
+        /// <summary>
+        /// Переопределяем для загрузки связанной сущности AccountStatus
+        /// </summary>
+        public override async Task<AccountDto?> GetByIdAsync(Guid id)
         {
-            var account = await _unitOfWork.Accounts.GetAccountWithStatusAsync(id);
+            var account = await _accountRepository.GetAccountWithStatusAsync(id);
             return account != null ? _mapper.Map<AccountDto>(account) : null;
         }
 
-        public async Task<IEnumerable<AccountDto>> GetAllAsync()
+        /// <summary>
+        /// Переопределяем GetByIdAfterCreateAsync и GetByIdAfterUpdateAsync для использования правильного метода
+        /// </summary>
+        protected override Task<AccountDto?> GetByIdAfterCreateAsync(Account entity)
         {
-            var accounts = await _unitOfWork.Accounts.GetAllAsync();
-            return _mapper.Map<IEnumerable<AccountDto>>(accounts);
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<AccountDto?>(null);
         }
 
-        public async Task<PagedResult<AccountDto>> GetPagedAsync(int pageNumber, int pageSize)
+        protected override Task<AccountDto?> GetByIdAfterUpdateAsync(Account entity)
         {
-            var accounts = await _unitOfWork.Accounts.GetAllAsync();
-            var totalCount = await _unitOfWork.Accounts.CountAsync();
-
-            var pagedAccounts = accounts
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<AccountDto>
-            {
-                Items = _mapper.Map<List<AccountDto>>(pagedAccounts),
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<AccountDto?>(null);
         }
 
-        public async Task<AccountDto> CreateAsync(CreateAccountDto createDto)
-        {
-            var account = _mapper.Map<Account>(createDto);
-            account.Id = Guid.NewGuid();
-
-            await _unitOfWork.Accounts.AddAsync(account);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(account.Id) 
-                ?? throw new InvalidOperationException("Failed to retrieve created account");
-        }
-
-        public async Task<AccountDto> UpdateAsync(UpdateAccountDto updateDto)
-        {
-            var existingAccount = await _unitOfWork.Accounts.GetByIdAsync(updateDto.Id)
-                ?? throw new KeyNotFoundException($"Account with ID {updateDto.Id} not found");
-
-            _mapper.Map(updateDto, existingAccount);
-
-            await _unitOfWork.Accounts.UpdateAsync(existingAccount);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(existingAccount.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve updated account");
-        }
-
-        public async Task DeleteAsync(Guid id)
-        {
-            var account = await _unitOfWork.Accounts.GetByIdAsync(id)
-                ?? throw new KeyNotFoundException($"Account with ID {id} not found");
-
-            await _unitOfWork.Accounts.DeleteAsync(account);
-            await _unitOfWork.SaveChangesAsync();
-        }
-
+        /// <summary>
+        /// Получить аккаунты по статусу (специфичный метод для Account)
+        /// </summary>
         public async Task<IEnumerable<AccountDto>> GetAccountsByStatusAsync(Guid statusId)
         {
-            var accounts = await _unitOfWork.Accounts.GetAccountsByStatusAsync(statusId);
+            var accounts = await _accountRepository.GetAccountsByStatusAsync(statusId);
             return _mapper.Map<IEnumerable<AccountDto>>(accounts);
         }
     }

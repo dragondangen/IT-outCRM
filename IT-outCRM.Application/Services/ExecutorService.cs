@@ -1,99 +1,70 @@
 using AutoMapper;
-using IT_outCRM.Application.DTOs.Common;
 using IT_outCRM.Application.DTOs.Executor;
 using IT_outCRM.Application.Interfaces;
+using IT_outCRM.Application.Interfaces.Repositories;
 using IT_outCRM.Application.Interfaces.Services;
+using IT_outCRM.Application.Services;
 using IT_outCRM.Domain.Entity;
 
 namespace IT_outCRM.Application.Services
 {
-    public class ExecutorService : IExecutorService
+    /// <summary>
+    /// Сервис для работы с исполнителями
+    /// Наследуется от BaseService для устранения дублирования кода (DRY)
+    /// </summary>
+    public class ExecutorService : BaseService<Executor, ExecutorDto, CreateExecutorDto, UpdateExecutorDto>, IExecutorService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly IExecutorRepository _executorRepository;
+        private readonly IEntityValidationService _validationService;
 
-        public ExecutorService(IUnitOfWork unitOfWork, IMapper mapper)
+        public ExecutorService(IUnitOfWork unitOfWork, IMapper mapper, IEntityValidationService validationService) 
+            : base(unitOfWork, mapper)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _executorRepository = unitOfWork.Executors;
+            _validationService = validationService;
         }
 
-        public async Task<ExecutorDto?> GetByIdAsync(Guid id)
+        protected override IGenericRepository<Executor> Repository => _executorRepository;
+
+        /// <summary>
+        /// Переопределяем для загрузки связанных сущностей
+        /// </summary>
+        public override async Task<ExecutorDto?> GetByIdAsync(Guid id)
         {
-            var executor = await _unitOfWork.Executors.GetExecutorWithDetailsAsync(id);
+            var executor = await _executorRepository.GetExecutorWithDetailsAsync(id);
             return executor != null ? _mapper.Map<ExecutorDto>(executor) : null;
         }
 
-        public async Task<IEnumerable<ExecutorDto>> GetAllAsync()
+        /// <summary>
+        /// Переопределяем GetByIdAfterCreateAsync и GetByIdAfterUpdateAsync для использования правильного метода
+        /// </summary>
+        protected override Task<ExecutorDto?> GetByIdAfterCreateAsync(Executor entity)
         {
-            var executors = await _unitOfWork.Executors.GetAllAsync();
-            return _mapper.Map<IEnumerable<ExecutorDto>>(executors);
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<ExecutorDto?>(null);
         }
 
-        public async Task<PagedResult<ExecutorDto>> GetPagedAsync(int pageNumber, int pageSize)
+        protected override Task<ExecutorDto?> GetByIdAfterUpdateAsync(Executor entity)
         {
-            var executors = await _unitOfWork.Executors.GetAllAsync();
-            var totalCount = await _unitOfWork.Executors.CountAsync();
-
-            var pagedExecutors = executors
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<ExecutorDto>
-            {
-                Items = _mapper.Map<List<ExecutorDto>>(pagedExecutors),
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<ExecutorDto?>(null);
         }
 
-        public async Task<ExecutorDto> CreateAsync(CreateExecutorDto createDto)
+        /// <summary>
+        /// Валидация при создании - проверка существования связанных сущностей
+        /// </summary>
+        protected override async Task ValidateCreateAsync(CreateExecutorDto createDto)
         {
-            // Проверка существования связанных сущностей
-            if (!await _unitOfWork.Accounts.ExistsAsync(createDto.AccountId))
-                throw new KeyNotFoundException($"Account with ID {createDto.AccountId} not found");
-
-            if (!await _unitOfWork.Companies.ExistsAsync(createDto.CompanyId))
-                throw new KeyNotFoundException($"Company with ID {createDto.CompanyId} not found");
-
-            var executor = _mapper.Map<Executor>(createDto);
-            executor.Id = Guid.NewGuid();
-
-            await _unitOfWork.Executors.AddAsync(executor);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(executor.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve created executor");
+            await _validationService.EnsureAccountExistsAsync(createDto.AccountId);
+            await _validationService.EnsureCompanyExistsAsync(createDto.CompanyId);
         }
 
-        public async Task<ExecutorDto> UpdateAsync(UpdateExecutorDto updateDto)
-        {
-            var existingExecutor = await _unitOfWork.Executors.GetByIdAsync(updateDto.Id)
-                ?? throw new KeyNotFoundException($"Executor with ID {updateDto.Id} not found");
-
-            _mapper.Map(updateDto, existingExecutor);
-
-            await _unitOfWork.Executors.UpdateAsync(existingExecutor);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(existingExecutor.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve updated executor");
-        }
-
-        public async Task DeleteAsync(Guid id)
-        {
-            var executor = await _unitOfWork.Executors.GetByIdAsync(id)
-                ?? throw new KeyNotFoundException($"Executor with ID {id} not found");
-
-            await _unitOfWork.Executors.DeleteAsync(executor);
-            await _unitOfWork.SaveChangesAsync();
-        }
-
+        /// <summary>
+        /// Получить топ исполнителей (специфичный метод для Executor)
+        /// </summary>
         public async Task<IEnumerable<ExecutorDto>> GetTopExecutorsAsync(int count)
         {
-            var executors = await _unitOfWork.Executors.GetTopExecutorsAsync(count);
+            var executors = await _executorRepository.GetTopExecutorsAsync(count);
             return _mapper.Map<IEnumerable<ExecutorDto>>(executors);
         }
     }

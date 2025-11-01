@@ -6,18 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IT_outCRM.Controllers
 {
-    [Authorize]
-    [ApiController]
     [Route("api/[controller]")]
-    public class CustomersController : ControllerBase
+    public class CustomersController : BaseController
     {
         private readonly ICustomerService _customerService;
-        private readonly ILogger<CustomersController> _logger;
 
         public CustomersController(ICustomerService customerService, ILogger<CustomersController> logger)
+            : base(logger)
         {
             _customerService = customerService;
-            _logger = logger;
         }
 
         /// <summary>
@@ -47,8 +44,9 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<CustomerDto>> GetById(Guid id)
         {
             var customer = await _customerService.GetByIdAsync(id);
-            if (customer == null)
-                return NotFound($"Клиент с ID {id} не найден");
+            var notFoundResult = HandleNotFound<CustomerDto>(customer, id, "Клиент");
+            if (notFoundResult != null)
+                return notFoundResult;
 
             return Ok(customer);
         }
@@ -61,7 +59,7 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<CustomerDto>> Create([FromBody] CreateCustomerDto createDto)
         {
             var customer = await _customerService.CreateAsync(createDto);
-            _logger.LogInformation("Создан клиент с ID: {CustomerId}", customer.Id);
+            LogCreated(customer, customer.Id, "Клиент");
             return CreatedAtAction(nameof(GetById), new { id = customer.Id }, customer);
         }
 
@@ -72,11 +70,12 @@ namespace IT_outCRM.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<CustomerDto>> Update(Guid id, [FromBody] UpdateCustomerDto updateDto)
         {
-            if (id != updateDto.Id)
-                return BadRequest("ID в URL не совпадает с ID в теле запроса");
+            var validationResult = ValidateUpdateId<CustomerDto>(id, updateDto.Id);
+            if (validationResult != null)
+                return validationResult;
 
             var customer = await _customerService.UpdateAsync(updateDto);
-            _logger.LogInformation("Обновлён клиент: {CustomerId}", id);
+            LogUpdated(id, "Клиент");
             return Ok(customer);
         }
 
@@ -88,7 +87,7 @@ namespace IT_outCRM.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             await _customerService.DeleteAsync(id);
-            _logger.LogInformation("Удалён клиент: {CustomerId}", id);
+            LogDeleted(id, "Клиент");
             return NoContent();
         }
 

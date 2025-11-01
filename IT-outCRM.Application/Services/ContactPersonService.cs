@@ -1,105 +1,57 @@
 using AutoMapper;
-using IT_outCRM.Application.DTOs.Common;
 using IT_outCRM.Application.DTOs.ContactPerson;
 using IT_outCRM.Application.Interfaces;
+using IT_outCRM.Application.Interfaces.Repositories;
 using IT_outCRM.Application.Interfaces.Services;
 using IT_outCRM.Domain.Entity;
 
 namespace IT_outCRM.Application.Services
 {
-    public class ContactPersonService : IContactPersonService
+    /// <summary>
+    /// Сервис для работы с контактными лицами
+    /// Наследуется от BaseService для устранения дублирования кода (DRY)
+    /// </summary>
+    public class ContactPersonService : BaseService<ContactPerson, ContactPersonDto, CreateContactPersonDto, UpdateContactPersonDto>, IContactPersonService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly IContactPersonRepository _contactPersonRepository;
 
-        public ContactPersonService(IUnitOfWork unitOfWork, IMapper mapper)
+        public ContactPersonService(IUnitOfWork unitOfWork, IMapper mapper) 
+            : base(unitOfWork, mapper)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _contactPersonRepository = unitOfWork.ContactPersons;
         }
 
-        public async Task<ContactPersonDto?> GetByIdAsync(Guid id)
+        protected override IGenericRepository<ContactPerson> Repository => _contactPersonRepository;
+
+        /// <summary>
+        /// Валидация при создании - проверка на дубликат email
+        /// </summary>
+        protected override async Task ValidateCreateAsync(CreateContactPersonDto createDto)
         {
-            var contactPerson = await _unitOfWork.ContactPersons.GetByIdAsync(id);
-            return contactPerson != null ? _mapper.Map<ContactPersonDto>(contactPerson) : null;
-        }
-
-        public async Task<IEnumerable<ContactPersonDto>> GetAllAsync()
-        {
-            var contactPersons = await _unitOfWork.ContactPersons.GetAllAsync();
-            return _mapper.Map<IEnumerable<ContactPersonDto>>(contactPersons);
-        }
-
-        public async Task<PagedResult<ContactPersonDto>> GetPagedAsync(int pageNumber, int pageSize)
-        {
-            var contactPersons = await _unitOfWork.ContactPersons.GetAllAsync();
-            var totalCount = await _unitOfWork.ContactPersons.CountAsync();
-
-            var pagedContactPersons = contactPersons
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<ContactPersonDto>
-            {
-                Items = _mapper.Map<List<ContactPersonDto>>(pagedContactPersons),
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
-        }
-
-        public async Task<ContactPersonDto> CreateAsync(CreateContactPersonDto createDto)
-        {
-            // Проверка на дубликат email
-            var existingPerson = await _unitOfWork.ContactPersons.GetByEmailAsync(createDto.Email);
+            var existingPerson = await _contactPersonRepository.GetByEmailAsync(createDto.Email);
             if (existingPerson != null)
                 throw new InvalidOperationException($"Contact person with email {createDto.Email} already exists");
-
-            var contactPerson = _mapper.Map<ContactPerson>(createDto);
-            contactPerson.Id = Guid.NewGuid();
-
-            await _unitOfWork.ContactPersons.AddAsync(contactPerson);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(contactPerson.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve created contact person");
         }
 
-        public async Task<ContactPersonDto> UpdateAsync(UpdateContactPersonDto updateDto)
+        /// <summary>
+        /// Валидация при обновлении - проверка на дубликат email (если email изменен)
+        /// </summary>
+        protected override async Task ValidateUpdateAsync(UpdateContactPersonDto updateDto, ContactPerson existingPerson)
         {
-            var existingPerson = await _unitOfWork.ContactPersons.GetByIdAsync(updateDto.Id)
-                ?? throw new KeyNotFoundException($"Contact person with ID {updateDto.Id} not found");
-
-            // Проверка на дубликат email (если email изменен)
             if (existingPerson.Email != updateDto.Email)
             {
-                var personWithSameEmail = await _unitOfWork.ContactPersons.GetByEmailAsync(updateDto.Email);
+                var personWithSameEmail = await _contactPersonRepository.GetByEmailAsync(updateDto.Email);
                 if (personWithSameEmail != null)
                     throw new InvalidOperationException($"Contact person with email {updateDto.Email} already exists");
             }
-
-            _mapper.Map(updateDto, existingPerson);
-
-            await _unitOfWork.ContactPersons.UpdateAsync(existingPerson);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(existingPerson.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve updated contact person");
         }
 
-        public async Task DeleteAsync(Guid id)
-        {
-            var contactPerson = await _unitOfWork.ContactPersons.GetByIdAsync(id)
-                ?? throw new KeyNotFoundException($"Contact person with ID {id} not found");
-
-            await _unitOfWork.ContactPersons.DeleteAsync(contactPerson);
-            await _unitOfWork.SaveChangesAsync();
-        }
-
+        /// <summary>
+        /// Получить контактное лицо по email (специфичный метод для ContactPerson)
+        /// </summary>
         public async Task<ContactPersonDto?> GetByEmailAsync(string email)
         {
-            var contactPerson = await _unitOfWork.ContactPersons.GetByEmailAsync(email);
+            var contactPerson = await _contactPersonRepository.GetByEmailAsync(email);
             return contactPerson != null ? _mapper.Map<ContactPersonDto>(contactPerson) : null;
         }
     }

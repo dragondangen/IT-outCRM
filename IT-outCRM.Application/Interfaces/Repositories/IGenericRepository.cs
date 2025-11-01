@@ -2,7 +2,13 @@ using System.Linq.Expressions;
 
 namespace IT_outCRM.Application.Interfaces.Repositories
 {
-    public interface IGenericRepository<T> where T : class
+    /// <summary>
+    /// Базовый интерфейс репозитория с CRUD операциями и пагинацией
+    /// Соблюдение SOLID Interface Segregation Principle:
+    /// Пагинация выделена в IPagedRepository, IGenericRepository наследует её
+    /// </summary>
+    /// <typeparam name="T">Тип сущности</typeparam>
+    public interface IGenericRepository<T> : IPagedRepository<T> where T : class
     {
         Task<T?> GetByIdAsync(Guid id);
         Task<IEnumerable<T>> GetAllAsync();

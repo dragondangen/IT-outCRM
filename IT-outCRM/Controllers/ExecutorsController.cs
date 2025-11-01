@@ -6,18 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IT_outCRM.Controllers
 {
-    [Authorize]
-    [ApiController]
     [Route("api/[controller]")]
-    public class ExecutorsController : ControllerBase
+    public class ExecutorsController : BaseController
     {
         private readonly IExecutorService _executorService;
-        private readonly ILogger<ExecutorsController> _logger;
 
         public ExecutorsController(IExecutorService executorService, ILogger<ExecutorsController> logger)
+            : base(logger)
         {
             _executorService = executorService;
-            _logger = logger;
         }
 
         /// <summary>
@@ -47,8 +44,9 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<ExecutorDto>> GetById(Guid id)
         {
             var executor = await _executorService.GetByIdAsync(id);
-            if (executor == null)
-                return NotFound($"Исполнитель с ID {id} не найден");
+            var notFoundResult = HandleNotFound<ExecutorDto>(executor, id, "Исполнитель");
+            if (notFoundResult != null)
+                return notFoundResult;
 
             return Ok(executor);
         }
@@ -61,7 +59,7 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<ExecutorDto>> Create([FromBody] CreateExecutorDto createDto)
         {
             var executor = await _executorService.CreateAsync(createDto);
-            _logger.LogInformation("Создан исполнитель с ID: {ExecutorId}", executor.Id);
+            LogCreated(executor, executor.Id, "Исполнитель");
             return CreatedAtAction(nameof(GetById), new { id = executor.Id }, executor);
         }
 
@@ -72,11 +70,12 @@ namespace IT_outCRM.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<ExecutorDto>> Update(Guid id, [FromBody] UpdateExecutorDto updateDto)
         {
-            if (id != updateDto.Id)
-                return BadRequest("ID в URL не совпадает с ID в теле запроса");
+            var validationResult = ValidateUpdateId<ExecutorDto>(id, updateDto.Id);
+            if (validationResult != null)
+                return validationResult;
 
             var executor = await _executorService.UpdateAsync(updateDto);
-            _logger.LogInformation("Обновлён исполнитель: {ExecutorId}", id);
+            LogUpdated(id, "Исполнитель");
             return Ok(executor);
         }
 
@@ -88,7 +87,7 @@ namespace IT_outCRM.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             await _executorService.DeleteAsync(id);
-            _logger.LogInformation("Удалён исполнитель: {ExecutorId}", id);
+            LogDeleted(id, "Исполнитель");
             return NoContent();
         }
 

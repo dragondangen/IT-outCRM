@@ -1,22 +1,29 @@
-using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace IT_outCRM.Middleware
 {
+    /// <summary>
+    /// Глобальный обработчик исключений
+    /// Соблюдение SOLID Single Responsibility Principle:
+    /// - Middleware только обрабатывает HTTP контекст и вызывает фабрику
+    /// - Создание ответов делегировано IExceptionResponseFactory
+    /// </summary>
     public class GlobalExceptionHandlerMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
-        private readonly IHostEnvironment _environment;
+        private readonly IExceptionResponseFactory _responseFactory;
 
         public GlobalExceptionHandlerMiddleware(
             RequestDelegate next,
             ILogger<GlobalExceptionHandlerMiddleware> logger,
-            IHostEnvironment environment)
+            IExceptionResponseFactory responseFactory)
         {
             _next = next;
             _logger = logger;
-            _environment = environment;
+            _responseFactory = responseFactory;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -35,47 +42,11 @@ namespace IT_outCRM.Middleware
         private async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";
-            
-            var response = new ErrorResponse
-            {
-                Path = context.Request.Path
-            };
 
-            switch (exception)
-            {
-                case ArgumentNullException:
-                case ArgumentException:
-                    response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    response.Message = "Неверные параметры запроса";
-                    response.Details = _environment.IsDevelopment() ? exception.Message : null;
-                    break;
-
-                case KeyNotFoundException:
-                    response.StatusCode = (int)HttpStatusCode.NotFound;
-                    response.Message = "Ресурс не найден";
-                    response.Details = _environment.IsDevelopment() ? exception.Message : null;
-                    break;
-
-                case UnauthorizedAccessException:
-                    response.StatusCode = (int)HttpStatusCode.Unauthorized;
-                    response.Message = "Доступ запрещен";
-                    response.Details = _environment.IsDevelopment() ? exception.Message : null;
-                    break;
-
-                case InvalidOperationException:
-                    response.StatusCode = (int)HttpStatusCode.Conflict;
-                    response.Message = "Операция не может быть выполнена";
-                    response.Details = _environment.IsDevelopment() ? exception.Message : null;
-                    break;
-
-                default:
-                    response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                    response.Message = "Внутренняя ошибка сервера";
-                    response.Details = _environment.IsDevelopment() 
-                        ? $"{exception.Message}\n{exception.StackTrace}" 
-                        : null;
-                    break;
-            }
+            // Используем фабрику для создания ответа
+            var environment = context.RequestServices.GetRequiredService<IHostEnvironment>();
+            var response = _responseFactory.CreateResponse(exception, environment);
+            response.Path = context.Request.Path;
 
             context.Response.StatusCode = response.StatusCode;
 

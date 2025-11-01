@@ -6,18 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IT_outCRM.Controllers
 {
-    [Authorize]
-    [ApiController]
     [Route("api/[controller]")]
-    public class OrdersController : ControllerBase
+    public class OrdersController : BaseController
     {
         private readonly IOrderService _orderService;
-        private readonly ILogger<OrdersController> _logger;
 
         public OrdersController(IOrderService orderService, ILogger<OrdersController> logger)
+            : base(logger)
         {
             _orderService = orderService;
-            _logger = logger;
         }
 
         /// <summary>
@@ -47,8 +44,9 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<OrderDto>> GetById(Guid id)
         {
             var order = await _orderService.GetByIdAsync(id);
-            if (order == null)
-                return NotFound($"Заказ с ID {id} не найден");
+            var notFoundResult = HandleNotFound<OrderDto>(order, id, "Заказ");
+            if (notFoundResult != null)
+                return notFoundResult;
 
             return Ok(order);
         }
@@ -61,7 +59,7 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<OrderDto>> Create([FromBody] CreateOrderDto createDto)
         {
             var order = await _orderService.CreateAsync(createDto);
-            _logger.LogInformation("Создан заказ: {OrderName} (ID: {OrderId})", order.Name, order.Id);
+            LogCreated(order, order.Id, "Заказ");
             return CreatedAtAction(nameof(GetById), new { id = order.Id }, order);
         }
 
@@ -72,11 +70,12 @@ namespace IT_outCRM.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<OrderDto>> Update(Guid id, [FromBody] UpdateOrderDto updateDto)
         {
-            if (id != updateDto.Id)
-                return BadRequest("ID в URL не совпадает с ID в теле запроса");
+            var validationResult = ValidateUpdateId<OrderDto>(id, updateDto.Id);
+            if (validationResult != null)
+                return validationResult;
 
             var order = await _orderService.UpdateAsync(updateDto);
-            _logger.LogInformation("Обновлён заказ: {OrderId}", id);
+            LogUpdated(id, "Заказ");
             return Ok(order);
         }
 
@@ -88,7 +87,7 @@ namespace IT_outCRM.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             await _orderService.DeleteAsync(id);
-            _logger.LogInformation("Удалён заказ: {OrderId}", id);
+            LogDeleted(id, "Заказ");
             return NoContent();
         }
 

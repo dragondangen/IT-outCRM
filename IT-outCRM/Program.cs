@@ -12,6 +12,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApplicationServices();
 
+// Middleware сервисы (SRP - разделение ответственностей)
+builder.Services.AddSingleton<IExceptionResponseFactory, ExceptionResponseFactory>();
+
 // Конфигурация JWT аутентификации
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];

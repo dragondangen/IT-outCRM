@@ -1,99 +1,70 @@
 using AutoMapper;
-using IT_outCRM.Application.DTOs.Common;
 using IT_outCRM.Application.DTOs.Customer;
 using IT_outCRM.Application.Interfaces;
+using IT_outCRM.Application.Interfaces.Repositories;
 using IT_outCRM.Application.Interfaces.Services;
+using IT_outCRM.Application.Services;
 using IT_outCRM.Domain.Entity;
 
 namespace IT_outCRM.Application.Services
 {
-    public class CustomerService : ICustomerService
+    /// <summary>
+    /// Сервис для работы с клиентами
+    /// Наследуется от BaseService для устранения дублирования кода (DRY)
+    /// </summary>
+    public class CustomerService : BaseService<Customer, CustomerDto, CreateCustomerDto, UpdateCustomerDto>, ICustomerService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly ICustomerRepository _customerRepository;
+        private readonly IEntityValidationService _validationService;
 
-        public CustomerService(IUnitOfWork unitOfWork, IMapper mapper)
+        public CustomerService(IUnitOfWork unitOfWork, IMapper mapper, IEntityValidationService validationService) 
+            : base(unitOfWork, mapper)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _customerRepository = unitOfWork.Customers;
+            _validationService = validationService;
         }
 
-        public async Task<CustomerDto?> GetByIdAsync(Guid id)
+        protected override IGenericRepository<Customer> Repository => _customerRepository;
+
+        /// <summary>
+        /// Переопределяем для загрузки связанных сущностей
+        /// </summary>
+        public override async Task<CustomerDto?> GetByIdAsync(Guid id)
         {
-            var customer = await _unitOfWork.Customers.GetCustomerWithDetailsAsync(id);
+            var customer = await _customerRepository.GetCustomerWithDetailsAsync(id);
             return customer != null ? _mapper.Map<CustomerDto>(customer) : null;
         }
 
-        public async Task<IEnumerable<CustomerDto>> GetAllAsync()
+        /// <summary>
+        /// Переопределяем GetByIdAfterCreateAsync и GetByIdAfterUpdateAsync для использования правильного метода
+        /// </summary>
+        protected override Task<CustomerDto?> GetByIdAfterCreateAsync(Customer entity)
         {
-            var customers = await _unitOfWork.Customers.GetAllAsync();
-            return _mapper.Map<IEnumerable<CustomerDto>>(customers);
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<CustomerDto?>(null);
         }
 
-        public async Task<PagedResult<CustomerDto>> GetPagedAsync(int pageNumber, int pageSize)
+        protected override Task<CustomerDto?> GetByIdAfterUpdateAsync(Customer entity)
         {
-            var customers = await _unitOfWork.Customers.GetAllAsync();
-            var totalCount = await _unitOfWork.Customers.CountAsync();
-
-            var pagedCustomers = customers
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<CustomerDto>
-            {
-                Items = _mapper.Map<List<CustomerDto>>(pagedCustomers),
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<CustomerDto?>(null);
         }
 
-        public async Task<CustomerDto> CreateAsync(CreateCustomerDto createDto)
+        /// <summary>
+        /// Валидация при создании - проверка существования связанных сущностей
+        /// </summary>
+        protected override async Task ValidateCreateAsync(CreateCustomerDto createDto)
         {
-            // Проверка существования связанных сущностей
-            if (!await _unitOfWork.Accounts.ExistsAsync(createDto.AccountId))
-                throw new KeyNotFoundException($"Account with ID {createDto.AccountId} not found");
-
-            if (!await _unitOfWork.Companies.ExistsAsync(createDto.CompanyId))
-                throw new KeyNotFoundException($"Company with ID {createDto.CompanyId} not found");
-
-            var customer = _mapper.Map<Customer>(createDto);
-            customer.Id = Guid.NewGuid();
-
-            await _unitOfWork.Customers.AddAsync(customer);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(customer.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve created customer");
+            await _validationService.EnsureAccountExistsAsync(createDto.AccountId);
+            await _validationService.EnsureCompanyExistsAsync(createDto.CompanyId);
         }
 
-        public async Task<CustomerDto> UpdateAsync(UpdateCustomerDto updateDto)
-        {
-            var existingCustomer = await _unitOfWork.Customers.GetByIdAsync(updateDto.Id)
-                ?? throw new KeyNotFoundException($"Customer with ID {updateDto.Id} not found");
-
-            _mapper.Map(updateDto, existingCustomer);
-
-            await _unitOfWork.Customers.UpdateAsync(existingCustomer);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(existingCustomer.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve updated customer");
-        }
-
-        public async Task DeleteAsync(Guid id)
-        {
-            var customer = await _unitOfWork.Customers.GetByIdAsync(id)
-                ?? throw new KeyNotFoundException($"Customer with ID {id} not found");
-
-            await _unitOfWork.Customers.DeleteAsync(customer);
-            await _unitOfWork.SaveChangesAsync();
-        }
-
+        /// <summary>
+        /// Получить клиентов по компании (специфичный метод для Customer)
+        /// </summary>
         public async Task<IEnumerable<CustomerDto>> GetCustomersByCompanyAsync(Guid companyId)
         {
-            var customers = await _unitOfWork.Customers.GetCustomersByCompanyAsync(companyId);
+            var customers = await _customerRepository.GetCustomersByCompanyAsync(companyId);
             return _mapper.Map<IEnumerable<CustomerDto>>(customers);
         }
     }

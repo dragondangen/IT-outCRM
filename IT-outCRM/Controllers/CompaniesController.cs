@@ -6,18 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IT_outCRM.Controllers
 {
-    [Authorize]
-    [ApiController]
     [Route("api/[controller]")]
-    public class CompaniesController : ControllerBase
+    public class CompaniesController : BaseController
     {
         private readonly ICompanyService _companyService;
-        private readonly ILogger<CompaniesController> _logger;
 
         public CompaniesController(ICompanyService companyService, ILogger<CompaniesController> logger)
+            : base(logger)
         {
             _companyService = companyService;
-            _logger = logger;
         }
 
         /// <summary>
@@ -47,8 +44,9 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<CompanyDto>> GetById(Guid id)
         {
             var company = await _companyService.GetByIdAsync(id);
-            if (company == null)
-                return NotFound($"Компания с ID {id} не найдена");
+            var notFoundResult = HandleNotFound<CompanyDto>(company, id, "Компания");
+            if (notFoundResult != null)
+                return notFoundResult;
 
             return Ok(company);
         }
@@ -61,7 +59,7 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<CompanyDto>> Create([FromBody] CreateCompanyDto createDto)
         {
             var company = await _companyService.CreateAsync(createDto);
-            _logger.LogInformation("Создана компания: {CompanyName} (ИНН: {Inn})", company.Name, company.Inn);
+            LogCreated(company, company.Id, "Компания");
             return CreatedAtAction(nameof(GetById), new { id = company.Id }, company);
         }
 
@@ -72,11 +70,12 @@ namespace IT_outCRM.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<CompanyDto>> Update(Guid id, [FromBody] UpdateCompanyDto updateDto)
         {
-            if (id != updateDto.Id)
-                return BadRequest("ID в URL не совпадает с ID в теле запроса");
+            var validationResult = ValidateUpdateId<CompanyDto>(id, updateDto.Id);
+            if (validationResult != null)
+                return validationResult;
 
             var company = await _companyService.UpdateAsync(updateDto);
-            _logger.LogInformation("Обновлена компания: {CompanyId}", id);
+            LogUpdated(id, "Компания");
             return Ok(company);
         }
 
@@ -88,7 +87,7 @@ namespace IT_outCRM.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             await _companyService.DeleteAsync(id);
-            _logger.LogInformation("Удалена компания: {CompanyId}", id);
+            LogDeleted(id, "Компания");
             return NoContent();
         }
 

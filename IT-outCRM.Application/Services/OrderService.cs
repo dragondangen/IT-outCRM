@@ -1,111 +1,88 @@
 using AutoMapper;
-using IT_outCRM.Application.DTOs.Common;
 using IT_outCRM.Application.DTOs.Order;
 using IT_outCRM.Application.Interfaces;
+using IT_outCRM.Application.Interfaces.Repositories;
 using IT_outCRM.Application.Interfaces.Services;
+using IT_outCRM.Application.Services;
 using IT_outCRM.Domain.Entity;
 
 namespace IT_outCRM.Application.Services
 {
-    public class OrderService : IOrderService
+    /// <summary>
+    /// Сервис для работы с заказами
+    /// Наследуется от BaseService для устранения дублирования кода (DRY)
+    /// </summary>
+    public class OrderService : BaseService<Order, OrderDto, CreateOrderDto, UpdateOrderDto>, IOrderService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly IOrderRepository _orderRepository;
+        private readonly IEntityValidationService _validationService;
 
-        public OrderService(IUnitOfWork unitOfWork, IMapper mapper)
+        public OrderService(IUnitOfWork unitOfWork, IMapper mapper, IEntityValidationService validationService) 
+            : base(unitOfWork, mapper)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _orderRepository = unitOfWork.Orders;
+            _validationService = validationService;
         }
 
-        public async Task<OrderDto?> GetByIdAsync(Guid id)
+        protected override IGenericRepository<Order> Repository => _orderRepository;
+
+        /// <summary>
+        /// Переопределяем для загрузки связанных сущностей
+        /// </summary>
+        public override async Task<OrderDto?> GetByIdAsync(Guid id)
         {
-            var order = await _unitOfWork.Orders.GetOrderWithDetailsAsync(id);
+            var order = await _orderRepository.GetOrderWithDetailsAsync(id);
             return order != null ? _mapper.Map<OrderDto>(order) : null;
         }
 
-        public async Task<IEnumerable<OrderDto>> GetAllAsync()
+        /// <summary>
+        /// Переопределяем GetByIdAfterCreateAsync и GetByIdAfterUpdateAsync для использования правильного метода
+        /// </summary>
+        protected override Task<OrderDto?> GetByIdAfterCreateAsync(Order entity)
         {
-            var orders = await _unitOfWork.Orders.GetAllAsync();
-            return _mapper.Map<IEnumerable<OrderDto>>(orders);
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<OrderDto?>(null);
         }
 
-        public async Task<PagedResult<OrderDto>> GetPagedAsync(int pageNumber, int pageSize)
+        protected override Task<OrderDto?> GetByIdAfterUpdateAsync(Order entity)
         {
-            var orders = await _unitOfWork.Orders.GetAllAsync();
-            var totalCount = await _unitOfWork.Orders.CountAsync();
-
-            var pagedOrders = orders
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<OrderDto>
-            {
-                Items = _mapper.Map<List<OrderDto>>(pagedOrders),
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
+            var id = GetEntityId(entity);
+            return id.HasValue ? GetByIdAsync(id.Value) : Task.FromResult<OrderDto?>(null);
         }
 
-        public async Task<OrderDto> CreateAsync(CreateOrderDto createDto)
+        /// <summary>
+        /// Валидация при создании - проверка существования связанных сущностей
+        /// </summary>
+        protected override async Task ValidateCreateAsync(CreateOrderDto createDto)
         {
-            // Проверка существования связанных сущностей
-            if (!await _unitOfWork.Customers.ExistsAsync(createDto.CustomerId))
-                throw new KeyNotFoundException($"Customer with ID {createDto.CustomerId} not found");
-
-            if (!await _unitOfWork.Executors.ExistsAsync(createDto.ExecutorId))
-                throw new KeyNotFoundException($"Executor with ID {createDto.ExecutorId} not found");
-
-            var order = _mapper.Map<Order>(createDto);
-            order.Id = Guid.NewGuid();
-
-            await _unitOfWork.Orders.AddAsync(order);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(order.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve created order");
+            await _validationService.EnsureCustomerExistsAsync(createDto.CustomerId);
+            await _validationService.EnsureExecutorExistsAsync(createDto.ExecutorId);
         }
 
-        public async Task<OrderDto> UpdateAsync(UpdateOrderDto updateDto)
-        {
-            var existingOrder = await _unitOfWork.Orders.GetByIdAsync(updateDto.Id)
-                ?? throw new KeyNotFoundException($"Order with ID {updateDto.Id} not found");
-
-            _mapper.Map(updateDto, existingOrder);
-
-            await _unitOfWork.Orders.UpdateAsync(existingOrder);
-            await _unitOfWork.SaveChangesAsync();
-
-            return await GetByIdAsync(existingOrder.Id)
-                ?? throw new InvalidOperationException("Failed to retrieve updated order");
-        }
-
-        public async Task DeleteAsync(Guid id)
-        {
-            var order = await _unitOfWork.Orders.GetByIdAsync(id)
-                ?? throw new KeyNotFoundException($"Order with ID {id} not found");
-
-            await _unitOfWork.Orders.DeleteAsync(order);
-            await _unitOfWork.SaveChangesAsync();
-        }
-
+        /// <summary>
+        /// Получить заказы по клиенту (специфичный метод для Order)
+        /// </summary>
         public async Task<IEnumerable<OrderDto>> GetOrdersByCustomerAsync(Guid customerId)
         {
-            var orders = await _unitOfWork.Orders.GetOrdersByCustomerAsync(customerId);
+            var orders = await _orderRepository.GetOrdersByCustomerAsync(customerId);
             return _mapper.Map<IEnumerable<OrderDto>>(orders);
         }
 
+        /// <summary>
+        /// Получить заказы по исполнителю (специфичный метод для Order)
+        /// </summary>
         public async Task<IEnumerable<OrderDto>> GetOrdersByExecutorAsync(Guid executorId)
         {
-            var orders = await _unitOfWork.Orders.GetOrdersByExecutorAsync(executorId);
+            var orders = await _orderRepository.GetOrdersByExecutorAsync(executorId);
             return _mapper.Map<IEnumerable<OrderDto>>(orders);
         }
 
+        /// <summary>
+        /// Получить заказы по статусу (специфичный метод для Order)
+        /// </summary>
         public async Task<IEnumerable<OrderDto>> GetOrdersByStatusAsync(Guid statusId)
         {
-            var orders = await _unitOfWork.Orders.GetOrdersByStatusAsync(statusId);
+            var orders = await _orderRepository.GetOrdersByStatusAsync(statusId);
             return _mapper.Map<IEnumerable<OrderDto>>(orders);
         }
     }
