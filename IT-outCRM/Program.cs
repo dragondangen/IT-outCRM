@@ -1,10 +1,12 @@
 using System.Text;
+using System.Reflection;
 using IT_outCRM.Application;
 using IT_outCRM.Infrastructure;
 using IT_outCRM.Middleware;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,7 +60,64 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddOpenApi();
+// Swagger конфигурация
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1.3.0",
+        Title = "IT-outCRM API",
+        Description = "REST API для управления CRM системой IT-аутсорсинговой компании. " +
+                      "Поддерживает управление клиентами, заказами, исполнителями, компаниями и контактными лицами.",
+        Contact = new OpenApiContact
+        {
+            Name = "IT-outCRM Support",
+            Email = "support@it-outcrm.com"
+        },
+        License = new OpenApiLicense
+        {
+            Name = "MIT License",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        }
+    });
+
+    // JWT авторизация в Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. \r\n\r\n " +
+                      "Введите 'Bearer' [пробел] и затем ваш токен.\r\n\r\n" +
+                      "Пример: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    // Включение XML комментариев
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+});
 
 var app = builder.Build();
 
@@ -76,7 +135,19 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "IT-outCRM API v1.3.0");
+        options.RoutePrefix = "swagger";
+        options.DocumentTitle = "IT-outCRM API Documentation";
+        options.DefaultModelsExpandDepth(2);
+        options.DefaultModelExpandDepth(2);
+        options.DisplayRequestDuration();
+        options.EnableDeepLinking();
+        options.EnableFilter();
+        options.ShowExtensions();
+    });
 }
 
 app.UseHttpsRedirection();
