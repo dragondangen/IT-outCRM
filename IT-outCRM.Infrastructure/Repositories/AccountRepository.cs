@@ -24,6 +24,24 @@ namespace IT_outCRM.Infrastructure.Repositories
                 .Include(a => a.AccountStatus)
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
+
+        public async Task<IEnumerable<Account>> GetAllWithStatusAsync()
+        {
+            return await _dbSet
+                .Include(a => a.AccountStatus)
+                .ToListAsync();
+        }
+
+        public async Task<(IEnumerable<Account> items, int totalCount)> GetPagedWithStatusAsync(int pageNumber, int pageSize)
+        {
+            var query = _dbSet.Include(a => a.AccountStatus);
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return (items, totalCount);
+        }
     }
 }
 

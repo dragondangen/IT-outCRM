@@ -37,7 +37,7 @@ IT-outCRM - это полнофункциональная CRM система, п
 - ✅ **SOLID принципы** - оценка 9.8/10, строгое соблюдение всех принципов
 - ✅ **DRY (Don't Repeat Yourself)** - базовые классы устраняют дублирование
 - ✅ **JWT Authentication** - безопасная аутентификация с ролями
-- ✅ **RESTful API** - 52+ эндпоинта для всех операций
+- ✅ **RESTful API** - 57+ эндпоинтов для всех операций
 - ✅ **Entity Framework Core** - современный ORM с миграциями
 - ✅ **FluentValidation** - декларативная валидация данных
 - ✅ **AutoMapper** - автоматический маппинг между моделями
@@ -393,6 +393,16 @@ http://localhost:5295/openapi/v1.json
 | PUT | `/contactpersons/{id}` | Обновить | Manager+ |
 | DELETE | `/contactpersons/{id}` | Удалить | Admin |
 
+#### 🏷️ Статусы аккаунтов (`/api/accountstatuses`):
+
+| Метод | Endpoint | Описание | Роль |
+|-------|----------|----------|------|
+| GET | `/accountstatuses` | Список всех | User+ |
+| GET | `/accountstatuses/{id}` | Получить по ID | User+ |
+| POST | `/accountstatuses` | Создать | Manager+ |
+| PUT | `/accountstatuses/{id}` | Обновить | Manager+ |
+| DELETE | `/accountstatuses/{id}` | Удалить | Admin |
+
 ### Примеры запросов:
 
 #### Регистрация:
@@ -670,6 +680,31 @@ dotnet ef migrations add <MigrationName> --project IT-outCRM.Infrastructure --st
 <a name="последние-обновления"></a>
 ## 🔄 Последние обновления
 
+### v1.3.2 (Ноябрь 2025) - AccountStatus контроллер и исправление загрузки связанных сущностей
+
+#### ✅ Добавлено:
+
+**1. Контроллер AccountStatus**
+- ✅ Полный CRUD контроллер для управления статусами аккаунтов
+- ✅ DTOs: `AccountStatusDto`, `CreateAccountStatusDto`, `UpdateAccountStatusDto`
+- ✅ FluentValidation валидаторы
+- ✅ `AccountStatusService` с проверкой уникальности имени
+- ✅ `AccountStatusRepository` с методом `NameExistsAsync`
+- ✅ AutoMapper профиль для маппинга
+- ✅ Интеграция в UnitOfWork и DependencyInjection
+- ✅ Полная документация в Swagger
+
+**2. Исправление загрузки связанных сущностей**
+- ✅ Исправлена проблема пустого `accountStatusName` при получении аккаунтов
+- ✅ Добавлены методы `GetAllWithStatusAsync()` и `GetPagedWithStatusAsync()` в `AccountRepository`
+- ✅ Переопределены методы `GetAllAsync()` и `GetPagedAsync()` в `AccountService`
+- ✅ Теперь все методы получения аккаунтов загружают связанную сущность `AccountStatus` через `Include()`
+
+#### Результаты:
+- 📈 **Эндпоинты:** +5 (теперь 57 эндпоинтов)
+- ✅ **Статусы аккаунтов:** полное управление через API
+- ✅ **Данные:** корректная загрузка связанных сущностей
+
 ### v1.3.1 (Ноябрь 2025) - Swagger UI документация
 
 #### ✅ Добавлено:
@@ -746,7 +781,7 @@ dotnet ef migrations add <MigrationName> --project IT-outCRM.Infrastructure --st
 
 ### v1.1.0 (28 октября 2025) - API и JWT
 
-- ✅ Реализованы 7 REST контроллеров (52 эндпоинта)
+- ✅ Реализованы 8 REST контроллеров (57 эндпоинтов)
 - ✅ JWT аутентификация с ролями
 - ✅ Валидация всех входных данных
 - ✅ Пагинация и фильтрация

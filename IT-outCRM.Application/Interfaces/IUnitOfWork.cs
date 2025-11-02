@@ -5,6 +5,7 @@ namespace IT_outCRM.Application.Interfaces
     public interface IUnitOfWork : IDisposable
     {
         IAccountRepository Accounts { get; }
+        IAccountStatusRepository AccountStatuses { get; }
         IOrderRepository Orders { get; }
         ICustomerRepository Customers { get; }
         ICompanyRepository Companies { get; }

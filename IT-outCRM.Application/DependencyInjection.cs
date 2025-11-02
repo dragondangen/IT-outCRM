@@ -19,6 +19,7 @@ namespace IT_outCRM.Application
             // Services
             services.AddScoped<IEntityValidationService, EntityValidationService>();
             services.AddScoped<IAccountService, AccountService>();
+            services.AddScoped<IAccountStatusService, AccountStatusService>();
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<ICustomerService, CustomerService>();
             services.AddScoped<ICompanyService, CompanyService>();

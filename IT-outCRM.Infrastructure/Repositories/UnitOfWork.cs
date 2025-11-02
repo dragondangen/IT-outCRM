@@ -10,6 +10,7 @@ namespace IT_outCRM.Infrastructure.Repositories
         private IDbContextTransaction? _transaction;
 
         public IAccountRepository Accounts { get; }
+        public IAccountStatusRepository AccountStatuses { get; }
         public IOrderRepository Orders { get; }
         public ICustomerRepository Customers { get; }
         public ICompanyRepository Companies { get; }
@@ -22,6 +23,7 @@ namespace IT_outCRM.Infrastructure.Repositories
             _context = context;
             
             Accounts = new AccountRepository(_context);
+            AccountStatuses = new AccountStatusRepository(_context);
             Orders = new OrderRepository(_context);
             Customers = new CustomerRepository(_context);
             Companies = new CompanyRepository(_context);

@@ -1,5 +1,6 @@
 using AutoMapper;
 using IT_outCRM.Application.DTOs.Account;
+using IT_outCRM.Application.DTOs.Common;
 using IT_outCRM.Application.Interfaces;
 using IT_outCRM.Application.Interfaces.Repositories;
 using IT_outCRM.Application.Interfaces.Services;
@@ -30,6 +31,31 @@ namespace IT_outCRM.Application.Services
         {
             var account = await _accountRepository.GetAccountWithStatusAsync(id);
             return account != null ? _mapper.Map<AccountDto>(account) : null;
+        }
+
+        /// <summary>
+        /// Переопределяем для загрузки связанной сущности AccountStatus
+        /// </summary>
+        public override async Task<IEnumerable<AccountDto>> GetAllAsync()
+        {
+            var accounts = await _accountRepository.GetAllWithStatusAsync();
+            return _mapper.Map<IEnumerable<AccountDto>>(accounts);
+        }
+
+        /// <summary>
+        /// Переопределяем для загрузки связанной сущности AccountStatus
+        /// </summary>
+        public override async Task<PagedResult<AccountDto>> GetPagedAsync(int pageNumber, int pageSize)
+        {
+            var (items, totalCount) = await _accountRepository.GetPagedWithStatusAsync(pageNumber, pageSize);
+
+            return new PagedResult<AccountDto>
+            {
+                Items = _mapper.Map<List<AccountDto>>(items),
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         /// <summary>

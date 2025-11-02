@@ -128,6 +128,18 @@ http://localhost:5295/swagger
 
 Полный CRUD + поиск по email
 
+### 🏷️ Статусы аккаунтов (`/api/accountstatuses`)
+
+| Метод | Endpoint | Описание | Роль |
+|-------|----------|----------|------|
+| GET | `/accountstatuses` | Все статусы | User+ |
+| GET | `/accountstatuses/{id}` | По ID | User+ |
+| POST | `/accountstatuses` | Создать | Manager+ |
+| PUT | `/accountstatuses/{id}` | Обновить | Manager+ |
+| DELETE | `/accountstatuses/{id}` | Удалить | Admin |
+
+Полный CRUD + проверка уникальности имени статуса
+
 ---
 
 ## 🔧 Технические детали
@@ -141,7 +153,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Version = "v1.3.0",
+        Version = "v1.3.2",
         Title = "IT-outCRM API",
         Description = "REST API для управления CRM системой",
         // ...

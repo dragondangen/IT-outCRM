@@ -12,6 +12,7 @@ IT-outCRM.Application/
 │   ├── Common/
 │   │   └── PagedResult.cs    # Класс для пагинации
 │   ├── Account/              # DTOs для аккаунтов
+│   ├── AccountStatus/        # DTOs для статусов аккаунтов
 │   ├── Order/                # DTOs для заказов
 │   ├── Customer/             # DTOs для клиентов
 │   ├── Company/              # DTOs для компаний
@@ -22,13 +23,16 @@ IT-outCRM.Application/
 │   ├── Repositories/        # Интерфейсы репозиториев
 │   │   ├── IGenericRepository.cs
 │   │   ├── IAccountRepository.cs
+│   │   ├── IAccountStatusRepository.cs
 │   │   ├── IOrderRepository.cs
 │   │   ├── ICustomerRepository.cs
 │   │   ├── ICompanyRepository.cs
 │   │   ├── IExecutorRepository.cs
 │   │   └── IContactPersonRepository.cs
 │   ├── Services/            # Интерфейсы сервисов
+│   │   ├── IBaseService.cs
 │   │   ├── IAccountService.cs
+│   │   ├── IAccountStatusService.cs
 │   │   ├── IOrderService.cs
 │   │   ├── ICustomerService.cs
 │   │   ├── ICompanyService.cs
@@ -37,7 +41,9 @@ IT-outCRM.Application/
 │   └── IUnitOfWork.cs       # Unit of Work паттерн
 │
 ├── Services/                 # Реализация бизнес-логики
+│   ├── BaseService.cs       # Базовый класс для сервисов (DRY)
 │   ├── AccountService.cs
+│   ├── AccountStatusService.cs
 │   ├── OrderService.cs
 │   ├── CustomerService.cs
 │   ├── CompanyService.cs
@@ -48,12 +54,16 @@ IT-outCRM.Application/
 │   ├── Account/
 │   │   ├── CreateAccountValidator.cs
 │   │   └── UpdateAccountValidator.cs
+│   ├── AccountStatus/
+│   │   ├── CreateAccountStatusValidator.cs
+│   │   └── UpdateAccountStatusValidator.cs
 │   ├── Order/
 │   ├── Company/
 │   └── ContactPerson/
 │
 ├── Mappings/                 # AutoMapper профили
 │   ├── AccountMappingProfile.cs
+│   ├── AccountStatusMappingProfile.cs
 │   ├── OrderMappingProfile.cs
 │   ├── CustomerMappingProfile.cs
 │   ├── CompanyMappingProfile.cs
@@ -200,7 +210,9 @@ public class OrdersController : ControllerBase
 - ✅ **Service Layer** - изоляция бизнес-логики
 - ✅ **FluentValidation** - декларативная валидация
 - ✅ **AutoMapper** - автоматический маппинг
-- ✅ **Swagger UI** - интерактивная документация API (v1.3.1)
+- ✅ **Swagger UI** - интерактивная документация API (v1.3.2)
+- ✅ **BaseService** - устранение дублирования CRUD логики (DRY)
+- ✅ **Eager Loading** - загрузка связанных сущностей через Include()
 
 ## 📝 Бизнес-правила
 
@@ -218,6 +230,11 @@ public class OrdersController : ControllerBase
 - Уникальный email
 - Валидация формата email и телефона
 - Обязательные ФИО
+
+### AccountStatus (Статусы аккаунтов)
+- Уникальное имя статуса (1-100 символов)
+- Проверка существования при создании/обновлении
+- Обязательная связь с аккаунтами
 
 ## 🔗 Связи между слоями
 
@@ -265,7 +282,7 @@ public async Task<PagedResult<OrderDto>> GetOrders(int page = 1, int size = 10)
 - Swagger UI: `http://localhost:5295/swagger` - интерактивная документация
 - OpenAPI: `http://localhost:5295/swagger/v1/swagger.json` - спецификация
 
-**Версия:** 1.3.1 (с Swagger UI)  
+**Версия:** 1.3.2 (AccountStatus + исправление Eager Loading)  
 **Дата:** Ноябрь 2025  
 **Статус:** ✅ Готов к разработке с полной документацией
 
@@ -294,12 +311,27 @@ Swagger UI доступен только в Development режиме и авто
 
 ---
 
+## ⚡ Последние обновления v1.3.2
+
+### ✅ Добавлен AccountStatus контроллер:
+- Полный CRUD для управления статусами аккаунтов
+- DTOs, валидаторы, сервис, репозиторий
+- Проверка уникальности имени статуса
+- Интеграция в UnitOfWork и DI
+
+### ✅ Исправлена загрузка связанных сущностей:
+- Добавлены методы `GetAllWithStatusAsync()` и `GetPagedWithStatusAsync()`
+- Теперь `accountStatusName` всегда заполняется через `.Include()`
+- Улучшена производительность запросов
+
 ## ⚡ Следующие шаги
 
 1. ✅ ~~Создать API контроллеры для всех сущностей~~ (Выполнено)
 2. ✅ ~~Добавить Swagger документацию с примерами~~ (Выполнено v1.3.1)
 3. ✅ ~~Реализовать JWT аутентификацию~~ (Выполнено)
-4. ⏳ Добавить Unit тесты для сервисов
-5. ⏳ Добавить XML комментарии для остальных контроллеров
-6. ⏳ Реализовать CQRS с MediatR (опционально)
+4. ✅ ~~Добавить AccountStatus контроллер~~ (Выполнено v1.3.2)
+5. ✅ ~~Исправить загрузку связанных сущностей~~ (Выполнено v1.3.2)
+6. ⏳ Добавить Unit тесты для сервисов
+7. ⏳ Добавить XML комментарии для остальных контроллеров
+8. ⏳ Реализовать CQRS с MediatR (опционально)
 

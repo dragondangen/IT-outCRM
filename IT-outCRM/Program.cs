@@ -66,10 +66,10 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Version = "v1.3.0",
+        Version = "v1.3.2",
         Title = "IT-outCRM API",
         Description = "REST API для управления CRM системой IT-аутсорсинговой компании. " +
-                      "Поддерживает управление клиентами, заказами, исполнителями, компаниями и контактными лицами.",
+                      "Поддерживает управление клиентами, заказами, исполнителями, компаниями, контактными лицами и статусами аккаунтов.",
         Contact = new OpenApiContact
         {
             Name = "IT-outCRM Support",
