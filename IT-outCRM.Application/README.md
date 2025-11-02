@@ -200,6 +200,7 @@ public class OrdersController : ControllerBase
 - ✅ **Service Layer** - изоляция бизнес-логики
 - ✅ **FluentValidation** - декларативная валидация
 - ✅ **AutoMapper** - автоматический маппинг
+- ✅ **Swagger UI** - интерактивная документация API (v1.3.1)
 
 ## 📝 Бизнес-правила
 
@@ -252,11 +253,53 @@ public async Task<PagedResult<OrderDto>> GetOrders(int page = 1, int size = 10)
 }
 ```
 
+## 📚 Дополнительная информация
+
+### Документация проекта:
+- [README.md](../README.md) - основная документация проекта
+- [SWAGGER_DOCUMENTATION.md](../SWAGGER_DOCUMENTATION.md) - руководство по Swagger UI
+- [SOLID_ANALYSIS.md](../SOLID_ANALYSIS.md) - анализ соблюдения SOLID принципов
+- [REFACTORING_SUMMARY.md](../REFACTORING_SUMMARY.md) - сводка рефакторинга
+
+### API Документация:
+- Swagger UI: `http://localhost:5295/swagger` - интерактивная документация
+- OpenAPI: `http://localhost:5295/swagger/v1/swagger.json` - спецификация
+
+**Версия:** 1.3.1 (с Swagger UI)  
+**Дата:** Ноябрь 2025  
+**Статус:** ✅ Готов к разработке с полной документацией
+
+---
+
+## ⚙️ Swagger UI (v1.3.1)
+
+XML документация автоматически генерируется для всех публичных методов контроллеров. Для добавления комментариев используйте XML теги:
+
+```csharp
+/// <summary>
+/// Получить список всех аккаунтов
+/// </summary>
+/// <param name="pageNumber">Номер страницы</param>
+/// <returns>Список аккаунтов</returns>
+/// <response code="200">Успешный запрос</response>
+[HttpGet]
+public async Task<ActionResult<IEnumerable<AccountDto>>> GetAll()
+```
+
+Swagger UI доступен только в Development режиме и автоматически включает:
+- JWT авторизацию
+- Все XML комментарии из кода
+- Примеры запросов и ответов
+- Интерактивное тестирование
+
+---
+
 ## ⚡ Следующие шаги
 
-1. Создать API контроллеры для всех сущностей
-2. Добавить Swagger документацию с примерами
-3. Реализовать JWT аутентификацию
-4. Добавить Unit тесты для сервисов
-5. Реализовать CQRS с MediatR (опционально)
+1. ✅ ~~Создать API контроллеры для всех сущностей~~ (Выполнено)
+2. ✅ ~~Добавить Swagger документацию с примерами~~ (Выполнено v1.3.1)
+3. ✅ ~~Реализовать JWT аутентификацию~~ (Выполнено)
+4. ⏳ Добавить Unit тесты для сервисов
+5. ⏳ Добавить XML комментарии для остальных контроллеров
+6. ⏳ Реализовать CQRS с MediatR (опционально)
 
