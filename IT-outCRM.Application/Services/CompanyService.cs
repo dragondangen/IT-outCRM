@@ -48,17 +48,22 @@ namespace IT_outCRM.Application.Services
         }
 
         /// <summary>
-        /// Валидация при создании - проверка на дубликат ИНН
+        /// Валидация при создании - проверка на дубликат ИНН и существование контактного лица
         /// </summary>
         protected override async Task ValidateCreateAsync(CreateCompanyDto createDto)
         {
             var existingCompany = await _companyRepository.GetCompanyByInnAsync(createDto.Inn);
             if (existingCompany != null)
                 throw new InvalidOperationException($"Company with INN {createDto.Inn} already exists");
+            
+            // Проверяем, что указанное контактное лицо существует
+            var contactPersonExists = await _unitOfWork.ContactPersons.ExistsAsync(createDto.ContactPersonId);
+            if (!contactPersonExists)
+                throw new KeyNotFoundException($"Contact person with ID {createDto.ContactPersonId} not found");
         }
 
         /// <summary>
-        /// Валидация при обновлении - проверка на дубликат ИНН (если ИНН изменен)
+        /// Валидация при обновлении - проверка на дубликат ИНН и существование контактного лица
         /// </summary>
         protected override async Task ValidateUpdateAsync(UpdateCompanyDto updateDto, Company existingCompany)
         {
@@ -68,6 +73,11 @@ namespace IT_outCRM.Application.Services
                 if (companyWithSameInn != null)
                     throw new InvalidOperationException($"Company with INN {updateDto.Inn} already exists");
             }
+            
+            // Проверяем, что указанное контактное лицо существует
+            var contactPersonExists = await _unitOfWork.ContactPersons.ExistsAsync(updateDto.ContactPersonId);
+            if (!contactPersonExists)
+                throw new KeyNotFoundException($"Contact person with ID {updateDto.ContactPersonId} not found");
         }
 
         /// <summary>
