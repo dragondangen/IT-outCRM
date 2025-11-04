@@ -1,10 +1,13 @@
 using System.Text;
 using System.Reflection;
+using System.Threading.RateLimiting;
 using IT_outCRM.Application;
 using IT_outCRM.Infrastructure;
 using IT_outCRM.Middleware;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -49,15 +52,69 @@ builder.Services.AddControllers();
 // FluentValidation автоматическая валидация
 builder.Services.AddFluentValidationAutoValidation();
 
-// CORS
+// Rate Limiting - защита от brute-force атак
+builder.Services.AddRateLimiter(options =>
+{
+    // Политика для аутентификации (login/register)
+    options.AddFixedWindowLimiter("auth", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 5; // 5 попыток
+        limiterOptions.Window = TimeSpan.FromMinutes(1); // за 1 минуту
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 2; // макс 2 в очереди
+    });
+
+    // Общая политика для API (защита от DoS)
+    options.AddFixedWindowLimiter("api", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 100; // 100 запросов
+        limiterOptions.Window = TimeSpan.FromMinutes(1); // за 1 минуту
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 10;
+    });
+
+    // Сообщение при превышении лимита
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429; // Too Many Requests
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            error = "Слишком много запросов",
+            message = "Вы превысили лимит запросов. Пожалуйста, попробуйте позже.",
+            retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter) 
+                ? retryAfter.ToString() 
+                : "60 секунд"
+        }, cancellationToken: token);
+    };
+});
+
+// CORS - настройка для Development и Production
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    if (builder.Environment.IsDevelopment())
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+        // Development: разрешить все источники для удобства разработки
+        options.AddDefaultPolicy(policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+    }
+    else
+    {
+        // Production: ограничить конкретными доменами
+        options.AddDefaultPolicy(policy =>
+        {
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+                ?? new[] { "https://yourdomain.com" };
+            
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+    }
 });
 
 // Swagger конфигурация
@@ -124,15 +181,16 @@ var app = builder.Build();
 // Глобальный обработчик исключений
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
-if (app.Environment.IsDevelopment())
+// Инициализация БД - применение миграций для всех окружений
+using (var scope = app.Services.CreateScope())
 {
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
-        context.Database.EnsureCreated(); 
-    }
+    var context = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
+    // Migrate() работает для Development и Production
+    // Создает БД если не существует и применяет все миграции
+    context.Database.Migrate();
 }
 
+// Swagger только для Development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -150,7 +208,17 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// HSTS для Production (HTTPS принудительно)
+if (app.Environment.IsProduction())
+{
+    app.UseHsts(); // HTTP Strict Transport Security
+}
+
 app.UseHttpsRedirection();
+
+// Rate Limiting перед CORS
+app.UseRateLimiter();
+
 app.UseCors();
 
 // Важно: аутентификация перед авторизацией

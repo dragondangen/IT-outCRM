@@ -7,6 +7,10 @@ namespace IT_outCRM.Infrastructure.Repositories
     /// <summary>
     /// Базовый репозиторий с CRUD операциями и пагинацией
     /// Реализует IGenericRepository, который включает IPagedRepository (ISP)
+    /// 
+    /// ВАЖНО: FindAsync(Expression) намеренно сделан protected для предотвращения
+    /// протечки деталей реализации EF Core через публичный API.
+    /// Наследники могут использовать его внутренне для реализации domain-specific методов.
     /// </summary>
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
@@ -29,7 +33,13 @@ namespace IT_outCRM.Infrastructure.Repositories
             return await _dbSet.ToListAsync();
         }
 
-        public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
+        /// <summary>
+        /// Защищенный метод для использования в наследниках.
+        /// НЕ выставляется через интерфейс для предотвращения leaky abstraction.
+        /// Используйте этот метод внутри конкретных репозиториев для создания
+        /// domain-specific методов с ясными контрактами.
+        /// </summary>
+        protected virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.Where(predicate).ToListAsync();
         }

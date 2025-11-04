@@ -19,10 +19,12 @@ namespace IT_outCRM.Application.Validators.Auth
 
             RuleFor(x => x.Password)
                 .NotEmpty().WithMessage("Пароль обязателен")
-                .MinimumLength(6).WithMessage("Пароль должен содержать минимум 6 символов")
+                .MinimumLength(8).WithMessage("Пароль должен содержать минимум 8 символов")
+                .MaximumLength(128).WithMessage("Пароль не должен превышать 128 символов")
                 .Matches(@"[A-Z]").WithMessage("Пароль должен содержать хотя бы одну заглавную букву")
                 .Matches(@"[a-z]").WithMessage("Пароль должен содержать хотя бы одну строчную букву")
-                .Matches(@"[0-9]").WithMessage("Пароль должен содержать хотя бы одну цифру");
+                .Matches(@"[0-9]").WithMessage("Пароль должен содержать хотя бы одну цифру")
+                .Matches(@"[!@#$%^&*()_+\-=\[\]{};':""\\|,.<>/?]").WithMessage("Пароль должен содержать хотя бы один специальный символ (!@#$%^&* и т.д.)");
 
             RuleFor(x => x.Role)
                 .Must(role => role == "User" || role == "Admin" || role == "Manager")

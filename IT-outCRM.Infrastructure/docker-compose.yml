@@ -1,3 +1,7 @@
+# ⚠️ WARNING: This configuration is ONLY for LOCAL DEVELOPMENT!
+# For production, use environment variables or Docker Secrets.
+# See: IT-outCRM.Infrastructure/README.md
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -6,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: mydb
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: password123  # ⚠️ CHANGE THIS! Not for production!
     ports:
       - "5432:5432"
     volumes:
@@ -26,7 +30,7 @@ services:
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_PASSWORD: admin123  # ⚠️ CHANGE THIS! Not for production!
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
       - "8080:80"

@@ -29,11 +29,12 @@ namespace IT_outCRM.Application.Services
         public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
         {
             // Проверка на существование пользователя
+            // Используем общее сообщение для предотвращения перебора имен пользователей
             if (await _unitOfWork.Users.UsernameExistsAsync(registerDto.Username))
-                throw new InvalidOperationException($"Пользователь с именем '{registerDto.Username}' уже существует");
+                throw new InvalidOperationException("Не удалось завершить регистрацию. Проверьте введенные данные.");
 
             if (await _unitOfWork.Users.EmailExistsAsync(registerDto.Email))
-                throw new InvalidOperationException($"Email '{registerDto.Email}' уже используется");
+                throw new InvalidOperationException("Не удалось завершить регистрацию. Проверьте введенные данные.");
 
             // Создание пользователя
             var user = new User

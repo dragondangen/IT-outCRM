@@ -2,6 +2,7 @@ using IT_outCRM.Application.DTOs.Auth;
 using IT_outCRM.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace IT_outCRM.Controllers
 {
@@ -42,9 +43,12 @@ namespace IT_outCRM.Controllers
         /// </remarks>
         /// <response code="200">Пользователь успешно зарегистрирован</response>
         /// <response code="400">Ошибка валидации данных</response>
+        /// <response code="429">Слишком много попыток регистрации</response>
+        [EnableRateLimiting("auth")]
         [HttpPost("register")]
         [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto registerDto)
         {
             var response = await _authService.RegisterAsync(registerDto);
@@ -70,9 +74,12 @@ namespace IT_outCRM.Controllers
         /// </remarks>
         /// <response code="200">Успешная аутентификация</response>
         /// <response code="401">Неверные учетные данные</response>
+        /// <response code="429">Слишком много попыток входа</response>
+        [EnableRateLimiting("auth")]
         [HttpPost("login")]
         [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
         {
             var response = await _authService.LoginAsync(loginDto);

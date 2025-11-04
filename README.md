@@ -181,39 +181,40 @@ git clone https://github.com/yourusername/IT-outCRM.git
 cd IT-outCRM
 ```
 
-### 2. Настройка базы данных:
+### 2. 🔐 Настройка секретов (ОБЯЗАТЕЛЬНО!)
+
+**⚠️ ВАЖНО:** Файл `appsettings.json` содержит только заглушки!
+
+**Настройте секреты перед запуском:**
+```powershell
+cd IT-outCRM
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=mydb;Username=postgres;Password=password123"
+dotnet user-secrets set "Jwt:Key" "YourSuperSecretKeyMinimum64Characters"
+```
+
+📖 **Подробная инструкция:** [`SETUP_SECRETS.md`](SETUP_SECRETS.md)
+
+### 3. Настройка базы данных:
 
 #### Вариант A: Docker (рекомендуется):
 
 ```bash
 cd IT-outCRM.Infrastructure
+copy .env.example .env  # Отредактируйте пароли в .env!
 docker-compose up -d
 ```
 
 Docker Compose запустит:
 - PostgreSQL 17 на порту `5432`
-- pgAdmin 4 на порту `5050`
+- pgAdmin 4 на порту `8080`
 
 #### Вариант B: Локальная PostgreSQL:
 
 Создайте базу данных:
 ```sql
-CREATE DATABASE crm_db;
+CREATE DATABASE mydb;
 ```
-
-### 3. Настройка строки подключения:
-
-Отредактируйте `IT-outCRM/appsettings.json`:
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=crm_db;Username=postgres;Password=password123"
-  }
-}
-```
-
-⚠️ **Для продакшена** используйте User Secrets или переменные окружения!
 
 ### 4. Применение миграций:
 
