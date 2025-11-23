@@ -1,0 +1,296 @@
+@page "/orders/{id:guid}"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IOrderService OrderService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Детали заказа - IT-outCRM</PageTitle>
+
+<div class="order-details-container">
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка заказа...</p>
+        </div>
+    }
+    else if (order == null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h3>Заказ не найден</h3>
+            <p class="text-muted">Возможно, заказ был удален или не существует</p>
+            <button class="btn btn-primary" @onclick="BackToList">
+                <i class="bi bi-arrow-left"></i> Вернуться к списку
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="page-header">
+            <div>
+                <button class="btn btn-link text-muted p-0 mb-2" @onclick="BackToList">
+                    <i class="bi bi-arrow-left"></i> Назад к списку заказов
+                </button>
+                <h2>📦 @order.Name</h2>
+                <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
+            </div>
+            <div class="actions">
+                <button class="btn btn-warning" @onclick="EditOrder">
+                    <i class="bi bi-pencil"></i> Редактировать
+                </button>
+                <button class="btn btn-danger" @onclick="ConfirmDelete">
+                    <i class="bi bi-trash"></i> Удалить
+                </button>
+            </div>
+        </div>
+
+        <div class="details-grid">
+            <!-- Основная информация -->
+            <div class="detail-card">
+                <h5 class="card-title">
+                    <i class="bi bi-info-circle"></i> Основная информация
+                </h5>
+                <div class="detail-item">
+                    <label>Название заказа:</label>
+                    <span>@order.Name</span>
+                </div>
+                <div class="detail-item">
+                    <label>Описание:</label>
+                    <span>@(string.IsNullOrEmpty(order.Description) ? "Не указано" : order.Description)</span>
+                </div>
+                <div class="detail-item price-highlight">
+                    <label>Стоимость:</label>
+                    <span>@order.Price.ToString("C")</span>
+                </div>
+            </div>
+
+            <!-- Участники -->
+            <div class="detail-card">
+                <h5 class="card-title">
+                    <i class="bi bi-people"></i> Участники
+                </h5>
+                <div class="detail-item">
+                    <label>Клиент:</label>
+                    <span>@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</span>
+                </div>
+                <div class="detail-item">
+                    <label>ID Клиента:</label>
+                    <span class="text-muted small">@order.CustomerId</span>
+                </div>
+                <div class="detail-item">
+                    <label>Исполнитель:</label>
+                    <span>@(string.IsNullOrEmpty(order.ExecutorName) ? "Не указан" : order.ExecutorName)</span>
+                </div>
+                <div class="detail-item">
+                    <label>ID Исполнителя:</label>
+                    <span class="text-muted small">@order.ExecutorId</span>
+                </div>
+            </div>
+
+            <!-- Статус и идентификация -->
+            <div class="detail-card">
+                <h5 class="card-title">
+                    <i class="bi bi-card-checklist"></i> Статус и идентификация
+                </h5>
+                <div class="detail-item">
+                    <label>Статус заказа:</label>
+                    <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
+                </div>
+                <div class="detail-item">
+                    <label>ID Статуса:</label>
+                    <span class="text-muted small">@order.OrderStatusId</span>
+                </div>
+                <div class="detail-item">
+                    <label>ID Заказа:</label>
+                    <span class="text-muted small">@order.Id</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .order-details-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .page-header h2 {
+        margin: 10px 0;
+        color: #333;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .loading-container, .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #ffc107;
+        margin-bottom: 20px;
+    }
+
+    .empty-state h3 {
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .detail-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+
+    .detail-card:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+
+    .card-title {
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.2rem;
+    }
+
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+
+    .detail-item label {
+        font-weight: 600;
+        color: #666;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+
+    .detail-item span {
+        color: #333;
+        text-align: right;
+        word-break: break-word;
+    }
+
+    .price-highlight {
+        background: linear-gradient(135deg, #11998e1a 0%, #38ef7d1a 100%);
+        padding: 15px;
+        border-radius: 10px;
+        margin: 10px 0;
+    }
+
+    .price-highlight span {
+        color: #11998e;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private OrderModel? order;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrder();
+    }
+
+    private async Task LoadOrder()
+    {
+        isLoading = true;
+        try
+        {
+            order = await OrderService.GetByIdAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки заказа: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void EditOrder()
+    {
+        Navigation.NavigateTo($"/orders/edit/{Id}");
+    }
+
+    private void BackToList()
+    {
+        Navigation.NavigateTo("/orders");
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (order == null) return;
+        
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Вы уверены, что хотите удалить заказ '{order.Name}'?");
+        if (confirmed)
+        {
+            await DeleteOrder();
+        }
+    }
+
+    private async Task DeleteOrder()
+    {
+        try
+        {
+            var success = await OrderService.DeleteAsync(Id);
+            if (success)
+            {
+                Navigation.NavigateTo("/orders");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при удалении заказа: {ex.Message}");
+        }
+    }
+}

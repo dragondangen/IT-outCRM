@@ -1,0 +1,208 @@
+@page "/order-statuses"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,Manager")]
+@inject IOrderStatusService OrderStatusService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Статусы заказов - IT-outCRM</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="page-header">
+        <div>
+            <h2>📊 Управление статусами заказов</h2>
+            <p class="text-muted">Настройка статусов для отслеживания заказов</p>
+        </div>
+        <button class="btn btn-primary btn-lg" @onclick="CreateStatus">
+            <i class="bi bi-plus-circle"></i> Добавить статус
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка статусов...</p>
+        </div>
+    }
+    else
+    {
+        @if (statuses.Any())
+        {
+            <div class="statuses-grid">
+                @foreach (var status in statuses)
+                {
+                    <div class="status-card">
+                        <div class="status-header">
+                            <h5>@status.Name</h5>
+                            <span class="badge @GetStatusBadgeClass(status.Name)">@status.Name</span>
+                        </div>
+                        <div class="status-actions">
+                            <button class="btn btn-sm btn-outline-warning" @onclick="() => EditStatus(status.Id)" title="Редактировать">
+                                <i class="bi bi-pencil"></i> Изменить
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteStatus(status.Id)" title="Удалить">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-card-checklist"></i>
+                <h3>Нет статусов</h3>
+                <p class="text-muted">Добавьте статусы для отслеживания заказов</p>
+                <button class="btn btn-primary" @onclick="CreateStatus">
+                    <i class="bi bi-plus-circle"></i> Добавить статус
+                </button>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .loading-container, .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    .statuses-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .status-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+
+    .status-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .status-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .status-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .status-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+</style>
+
+@code {
+    private List<OrderStatusModel> statuses = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatuses();
+    }
+
+    private async Task LoadStatuses()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            statuses = await OrderStatusService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки статусов: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CreateStatus()
+    {
+        Navigation.NavigateTo("/order-statuses/create");
+    }
+
+    private void EditStatus(Guid id)
+    {
+        Navigation.NavigateTo($"/order-statuses/edit/{id}");
+    }
+
+    private async Task DeleteStatus(Guid id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Вы уверены, что хотите удалить этот статус?"))
+        {
+            try
+            {
+                // TODO: реализовать удаление когда будет метод на backend
+                errorMessage = "Функция удаления статусов пока не реализована на backend";
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Ошибка: {ex.Message}";
+            }
+        }
+    }
+
+    private string GetStatusBadgeClass(string statusName)
+    {
+        return statusName switch
+        {
+            "Новый" => "bg-primary",
+            "В работе" => "bg-info",
+            "Завершен" => "bg-success",
+            "Отменен" => "bg-danger",
+            _ => "bg-secondary",
+        };
+    }
+}
+

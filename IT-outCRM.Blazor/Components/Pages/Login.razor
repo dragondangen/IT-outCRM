@@ -1,0 +1,104 @@
+@page "/login"
+@using IT_outCRM.Blazor.Models
+@using IT_outCRM.Blazor.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Вход - IT-outCRM</PageTitle>
+
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h3 class="card-title text-center mb-4">Вход в систему</h3>
+                    
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <EditForm Model="LoginModel" OnValidSubmit="HandleLogin" FormName="loginForm">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Имя пользователя</label>
+                            <InputText id="username" class="form-control" @bind-Value="LoginModel!.Username" />
+                            <ValidationMessage For="@(() => LoginModel!.Username)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Пароль</label>
+                            <InputText id="password" type="password" class="form-control" @bind-Value="LoginModel!.Password" />
+                            <ValidationMessage For="@(() => LoginModel!.Password)" />
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                Войти
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    <div class="text-center mt-3">
+                        <a href="/register" class="text-decoration-none">Нет аккаунта? Зарегистрироваться</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginModel? LoginModel { get; set; }
+    
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override void OnInitialized()
+    {
+        LoginModel ??= new LoginModel();
+    }
+
+    private async Task HandleLogin()
+    {
+        if (LoginModel == null) return;
+        
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var result = await AuthService.LoginAsync(LoginModel);
+            
+            if (result != null)
+            {
+                // Успешный вход - небольшая задержка для обновления состояния аутентификации
+                await Task.Delay(100);
+                
+                // Перенаправляем на Dashboard без полной перезагрузки
+                Navigation.NavigateTo("/dashboard", forceLoad: false);
+            }
+            else
+            {
+                errorMessage = "Неверное имя пользователя или пароль";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка при входе: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

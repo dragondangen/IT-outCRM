@@ -1,0 +1,312 @@
+@page "/dashboard"
+@using Microsoft.AspNetCore.Authorization
+@using IT_outCRM.Blazor.Services
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject IOrderService OrderService
+@inject ICustomerService CustomerService
+@inject NavigationManager Navigation
+@inject ILogger<Dashboard> Logger
+
+<PageTitle>Панель управления - IT-outCRM</PageTitle>
+
+<div class="dashboard-container">
+    <h1 class="dashboard-title">📊 Панель управления</h1>
+    
+    <AuthorizeView>
+        <Authorized>
+            <div class="welcome-message">
+                <h2>Добро пожаловать, @context.User.Identity?.Name!</h2>
+                <p class="text-muted">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</p>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p>Загрузка данных...</p>
+        </div>
+    }
+    else
+    {
+        <div class="stats-grid">
+            <!-- Статистика заказов -->
+            <div class="stat-card stat-card-primary">
+                <div class="stat-icon">📦</div>
+                <div class="stat-content">
+                    <h3>Всего заказов</h3>
+                    <p class="stat-number">@totalOrders</p>
+                </div>
+            </div>
+
+            <!-- Статистика клиентов -->
+            <div class="stat-card stat-card-success">
+                <div class="stat-icon">👥</div>
+                <div class="stat-content">
+                    <h3>Всего клиентов</h3>
+                    <p class="stat-number">@totalCustomers</p>
+                </div>
+            </div>
+
+            <!-- Активные заказы -->
+            <div class="stat-card stat-card-warning">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-content">
+                    <h3>Активные заказы</h3>
+                    <p class="stat-number">@activeOrders</p>
+                </div>
+            </div>
+
+            <!-- Завершенные заказы -->
+            <div class="stat-card stat-card-info">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <h3>Завершено</h3>
+                    <p class="stat-number">@completedOrders</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Быстрые действия -->
+        <div class="quick-actions">
+            <h3>⚡ Быстрые действия</h3>
+            <div class="action-buttons">
+                <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/orders/create")'>
+                    ➕ Создать заказ
+                </button>
+                <button class="btn btn-success" @onclick='() => Navigation.NavigateTo("/customers/create")'>
+                    👤 Добавить клиента
+                </button>
+                <button class="btn btn-info" @onclick='() => Navigation.NavigateTo("/orders")'>
+                    📋 Все заказы
+                </button>
+                <button class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/customers")'>
+                    📇 Все клиенты
+                </button>
+            </div>
+        </div>
+
+        <!-- Последние заказы -->
+        @if (recentOrders.Any())
+        {
+            <div class="recent-orders">
+                <h3>📝 Последние заказы</h3>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Клиент</th>
+                                <th>Цена</th>
+                                <th>Исполнитель</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in recentOrders.Take(5))
+                            {
+                                <tr style="cursor: pointer;" @onclick='() => Navigation.NavigateTo($"/orders")'>
+                                    <td><strong>@order.Name</strong></td>
+                                    <td>@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</td>
+                                    <td><strong>@order.Price.ToString("C")</strong></td>
+                                    <td>@(string.IsNullOrEmpty(order.ExecutorName) ? "Не указан" : order.ExecutorName)</td>
+                                    <td>
+                                        <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .dashboard-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .dashboard-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .welcome-message {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .welcome-message h2 {
+        margin: 0;
+        font-size: 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    .stat-icon {
+        font-size: 3rem;
+        margin-right: 20px;
+    }
+
+    .stat-content h3 {
+        font-size: 1rem;
+        color: #666;
+        margin: 0 0 10px 0;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .stat-card-primary { border-left: 5px solid #0d6efd; }
+    .stat-card-primary .stat-number { color: #0d6efd; }
+
+    .stat-card-success { border-left: 5px solid #198754; }
+    .stat-card-success .stat-number { color: #198754; }
+
+    .stat-card-warning { border-left: 5px solid #ffc107; }
+    .stat-card-warning .stat-number { color: #ffc107; }
+
+    .stat-card-info { border-left: 5px solid #0dcaf0; }
+    .stat-card-info .stat-number { color: #0dcaf0; }
+
+    .quick-actions {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .quick-actions h3 {
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .action-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+
+    .action-buttons .btn {
+        padding: 15px;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .action-buttons .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .recent-orders {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .recent-orders h3 {
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private int totalOrders = 0;
+    private int totalCustomers = 0;
+    private int activeOrders = 0;
+    private int completedOrders = 0;
+    private List<OrderModel> recentOrders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Logger.LogInformation("=== DASHBOARD INITIALIZED ===");
+        
+        try
+        {
+            isLoading = true;
+
+            // Загружаем статистику
+            var orders = await OrderService.GetAllAsync();
+            var customers = await CustomerService.GetAllAsync();
+
+            totalOrders = orders.Count;
+            totalCustomers = customers.Count;
+            
+            Logger.LogInformation("Dashboard loaded: {Orders} orders, {Customers} customers", totalOrders, totalCustomers);
+            
+            // Подсчитываем активные и завершенные заказы
+            // Примерная логика: если OrderStatusName содержит "завершен" или "закрыт"
+            completedOrders = orders.Count(o => 
+                !string.IsNullOrEmpty(o.OrderStatusName) && 
+                (o.OrderStatusName.Contains("завершен", StringComparison.OrdinalIgnoreCase) || 
+                 o.OrderStatusName.Contains("закрыт", StringComparison.OrdinalIgnoreCase)));
+            activeOrders = totalOrders - completedOrders;
+
+            // Последние 5 заказов
+            recentOrders = orders.Take(5).ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading dashboard data");
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+

@@ -1,0 +1,391 @@
+@page "/orders"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IOrderService OrderService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Заказы - IT-outCRM</PageTitle>
+
+<div class="orders-container">
+    <div class="page-header">
+        <div>
+            <h2>📦 Управление заказами</h2>
+            <p class="text-muted">Всего заказов: @filteredOrders.Count</p>
+        </div>
+        <button class="btn btn-primary btn-lg" @onclick="CreateOrder">
+            <i class="bi bi-plus-circle"></i> Создать заказ
+        </button>
+    </div>
+
+    <!-- Поиск и фильтры -->
+    <div class="filters-card">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" class="form-control" placeholder="Поиск по названию или описанию..." 
+                           @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterOrders" />
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @onchange="OnStatusFilterChanged">
+                    <option value="">Все статусы</option>
+                    @foreach (var status in uniqueStatuses)
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary w-100" @onclick="ResetFilters">
+                    <i class="bi bi-x-circle"></i> Сбросить фильтры
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка заказов...</p>
+        </div>
+    }
+    else
+    {
+        @if (filteredOrders.Any())
+        {
+            <div class="orders-grid">
+                @foreach (var order in filteredOrders)
+                {
+                    <div class="order-card" @onclick="() => ViewOrder(order.Id)">
+                        <div class="order-card-header">
+                            <h5>@order.Name</h5>
+                            <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
+                        </div>
+                        <div class="order-card-body">
+                            <p class="description">@(string.IsNullOrEmpty(order.Description) ? "Нет описания" : (order.Description.Length > 100 ? order.Description.Substring(0, 100) + "..." : order.Description))</p>
+                            <div class="order-info">
+                                <div class="info-item">
+                                    <i class="bi bi-person"></i>
+                                    <span>@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="bi bi-briefcase"></i>
+                                    <span>@(string.IsNullOrEmpty(order.ExecutorName) ? "Не указан" : order.ExecutorName)</span>
+                                </div>
+                                <div class="info-item price">
+                                    <i class="bi bi-cash"></i>
+                                    <span>@order.Price.ToString("C")</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="order-card-footer">
+                            <button class="btn btn-sm btn-outline-info" @onclick:stopPropagation="true" @onclick="() => ViewOrder(order.Id)">
+                                <i class="bi bi-eye"></i> Просмотр
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" @onclick:stopPropagation="true" @onclick="() => EditOrder(order.Id)">
+                                <i class="bi bi-pencil"></i> Изменить
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick:stopPropagation="true" @onclick="() => ConfirmDelete(order.Id, order.Name)">
+                                <i class="bi bi-trash"></i> Удалить
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>Нет заказов</h3>
+                <p class="text-muted">@(string.IsNullOrEmpty(searchTerm) ? "Создайте первый заказ, чтобы начать работу" : "По вашему запросу ничего не найдено")</p>
+                @if (string.IsNullOrEmpty(searchTerm))
+                {
+                    <button class="btn btn-primary" @onclick="CreateOrder">
+                        <i class="bi bi-plus-circle"></i> Создать заказ
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-outline-primary" @onclick="ResetFilters">
+                        <i class="bi bi-x-circle"></i> Сбросить фильтры
+                    </button>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .orders-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        color: #333;
+    }
+
+    .filters-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+
+    .search-box {
+        position: relative;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+    }
+
+    .search-box .form-control {
+        padding-left: 45px;
+        border-radius: 10px;
+    }
+
+    .orders-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .order-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .order-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .order-card-header {
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .order-card-header h5 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .order-card-body {
+        padding: 20px;
+    }
+
+    .description {
+        color: #666;
+        margin-bottom: 15px;
+        min-height: 60px;
+    }
+
+    .order-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #555;
+    }
+
+    .info-item i {
+        color: #667eea;
+        font-size: 1.1rem;
+    }
+
+    .info-item.price {
+        font-weight: 600;
+        color: #198754;
+        font-size: 1.1rem;
+    }
+
+    .order-card-footer {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+    }
+
+    .order-card-footer .btn {
+        flex: 1;
+    }
+
+    .loading-container {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    .empty-state h3 {
+        color: #333;
+        margin-bottom: 10px;
+    }
+</style>
+
+@code {
+    private List<OrderModel> allOrders = new();
+    private List<OrderModel> filteredOrders = new();
+    private List<string> uniqueStatuses = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string searchTerm = string.Empty;
+    private string selectedStatus = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrders();
+    }
+
+    private async Task LoadOrders()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            allOrders = await OrderService.GetAllAsync();
+            uniqueStatuses = allOrders
+                .Select(o => o.OrderStatusName)
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Distinct()
+                .ToList();
+            
+            FilterOrders();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки заказов: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void FilterOrders()
+    {
+        filteredOrders = allOrders.Where(o =>
+            (string.IsNullOrEmpty(searchTerm) ||
+             o.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             o.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(selectedStatus) || o.OrderStatusName == selectedStatus)
+        ).ToList();
+    }
+
+    private void OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? string.Empty;
+        FilterOrders();
+    }
+
+    private void ResetFilters()
+    {
+        searchTerm = string.Empty;
+        selectedStatus = string.Empty;
+        FilterOrders();
+    }
+
+    private void CreateOrder()
+    {
+        Navigation.NavigateTo("/orders/create");
+    }
+
+    private void ViewOrder(Guid orderId)
+    {
+        Navigation.NavigateTo($"/orders/{orderId}");
+    }
+
+    private void EditOrder(Guid orderId)
+    {
+        Navigation.NavigateTo($"/orders/edit/{orderId}");
+    }
+
+    private async Task ConfirmDelete(Guid orderId, string orderName)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Вы уверены, что хотите удалить заказ '{orderName}'?");
+        if (confirmed)
+        {
+            await DeleteOrder(orderId);
+        }
+    }
+
+    private async Task DeleteOrder(Guid orderId)
+    {
+        try
+        {
+            var success = await OrderService.DeleteAsync(orderId);
+            if (success)
+            {
+                await LoadOrders();
+            }
+            else
+            {
+                errorMessage = "Ошибка при удалении заказа";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка при удалении заказа: {ex.Message}";
+        }
+    }
+}

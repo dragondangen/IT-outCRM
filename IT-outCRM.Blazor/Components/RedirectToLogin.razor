@@ -1,0 +1,11 @@
+@inject NavigationManager Navigation
+
+<p>Перенаправление на страницу входа...</p>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/login", true);
+    }
+}
+

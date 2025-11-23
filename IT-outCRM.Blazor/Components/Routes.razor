@@ -1,0 +1,31 @@
+﻿<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @if (!(context?.User?.Identity?.IsAuthenticated ?? false))
+                {
+                    <RedirectToLogin />
+                }
+                else
+                {
+                    <p role="alert">У вас нет прав для просмотра этой страницы.</p>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+</Router>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private AuthenticationState? context;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask != null)
+        {
+            context = await AuthenticationStateTask;
+        }
+    }
+}

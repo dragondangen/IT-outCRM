@@ -1,0 +1,166 @@
+﻿@using IT_outCRM.Blazor.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IDisposable
+@rendermode InteractiveServer
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">IT-outCRM</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <AuthorizeView>
+            <Authorized>
+                @* Общие пункты для всех авторизованных пользователей *@
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="dashboard">
+                        <span class="bi bi-speedometer2" aria-hidden="true"></span> Dashboard
+                    </NavLink>
+                </div>
+
+                @* Для клиентов - Мои заказы *@
+                @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Manager"))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="my-orders">
+                            <span class="bi bi-box-seam" aria-hidden="true"></span> Мои заказы
+                        </NavLink>
+                    </div>
+                }
+
+                @* Для админов и менеджеров - полный доступ *@
+                @if (context.User.IsInRole("Admin") || context.User.IsInRole("Manager"))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="orders">
+                            <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Все заказы
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="customers">
+                            <span class="bi bi-people-fill" aria-hidden="true"></span> Клиенты
+                        </NavLink>
+                    </div>
+
+                    <hr class="my-2" />
+
+                    <div class="nav-item px-3">
+                        <small class="text-muted px-3">СПРАВОЧНИКИ</small>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="companies">
+                            <span class="bi bi-building" aria-hidden="true"></span> Компании
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="accounts">
+                            <span class="bi bi-person-badge" aria-hidden="true"></span> Аккаунты
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="executors">
+                            <span class="bi bi-person-workspace" aria-hidden="true"></span> Исполнители
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="order-statuses">
+                            <span class="bi bi-card-checklist" aria-hidden="true"></span> Статусы заказов
+                        </NavLink>
+                    </div>
+                }
+
+                @* Только для админов *@
+                @if (context.User.IsInRole("Admin"))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="reports" Match="NavLinkMatch.All">
+                            <span class="bi bi-graph-up" aria-hidden="true"></span> Отчеты
+                        </NavLink>
+                    </div>
+                }
+
+                <hr class="my-2" />
+
+                @* Профиль пользователя *@
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="profile">
+                        <span class="bi bi-person-circle" aria-hidden="true"></span> Профиль
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <div class="nav-link text-muted user-info">
+                        <small>
+                            <i class="bi bi-shield-check"></i> 
+                            @context.User.Identity?.Name 
+                            (@GetUserRole(context.User))
+                        </small>
+                    </div>
+                </div>
+
+                <div class="nav-item px-3">
+                    <a class="nav-link logout-link" @onclick="HandleLogout" style="cursor: pointer;">
+                        <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Выйти
+                    </a>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="login">
+                        <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Войти
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="register">
+                        <span class="bi bi-person-plus-fill" aria-hidden="true"></span> Регистрация
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </nav>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Подписываемся на изменения состояния аутентификации
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        // Принудительно обновляем UI при изменении состояния
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: false);
+    }
+
+    private string GetUserRole(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Admin")) return "Админ";
+        if (user.IsInRole("Manager")) return "Менеджер";
+        return "Клиент";
+    }
+
+    public void Dispose()
+    {
+        // Отписываемся при удалении компонента
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

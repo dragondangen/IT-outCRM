@@ -1,0 +1,238 @@
+@page "/executors/create"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,Manager")]
+@inject IExecutorService ExecutorService
+@inject IAccountService AccountService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Создание исполнителя - IT-outCRM</PageTitle>
+
+<div class="create-container">
+    <div class="page-header">
+        <div>
+            <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo("/executors")'>
+                <i class="bi bi-arrow-left"></i> Назад к списку
+            </button>
+            <h2>➕ Добавление нового исполнителя</h2>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (successMessage)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> Исполнитель успешно создан!
+            <button type="button" class="btn-close" @onclick="() => successMessage = false"></button>
+        </div>
+    }
+
+    @if (isLoadingData)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка данных...</p>
+        </div>
+    }
+    else
+    {
+        <div class="form-card">
+            <EditForm Model="executor" OnValidSubmit="HandleSubmit" FormName="createExecutorForm">
+                <DataAnnotationsValidator />
+                
+                <div class="mb-3">
+                    <label for="account" class="form-label">Аккаунт <span class="text-danger">*</span></label>
+                    @if (accounts.Any())
+                    {
+                        <InputSelect id="account" class="form-select" @bind-Value="executor!.AccountId">
+                            <option value="@Guid.Empty">-- Выберите аккаунт --</option>
+                            @foreach (var account in accounts)
+                            {
+                                <option value="@account.Id">@account.CompanyName</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => executor!.AccountId)" class="text-danger" />
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> Нет доступных аккаунтов. 
+                            Пользователи могут зарегистрироваться как исполнители через форму регистрации.
+                        </div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label for="accountName" class="form-label">Имя исполнителя <span class="text-danger">*</span></label>
+                    <InputText id="accountName" class="form-control" @bind-Value="executor!.AccountName" 
+                              placeholder="Иванов Иван" />
+                    <ValidationMessage For="@(() => executor!.AccountName)" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="specialization" class="form-label">Специализация <span class="text-danger">*</span></label>
+                    <InputText id="specialization" class="form-control" @bind-Value="executor!.Specialization" 
+                              placeholder="Например: Веб-разработчик, Дизайнер, SMM-специалист..." />
+                    <ValidationMessage For="@(() => executor!.Specialization)" class="text-danger" />
+                    <small class="text-muted d-block mt-1">Укажите специализацию или род деятельности</small>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> <strong>Совет:</strong> Пользователи могут самостоятельно 
+                    зарегистрироваться как исполнители через форму регистрации, указав свою специализацию.
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/executors")'>
+                        <i class="bi bi-x-circle"></i> Отмена
+                    </button>
+                    <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        <i class="bi bi-check-circle"></i> Создать исполнителя
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+<style>
+    .create-container {
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .loading-container {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #555;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 10px 15px;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #e9ecef;
+    }
+</style>
+
+@code {
+    [SupplyParameterFromForm]
+    private ExecutorModel? executor { get; set; }
+    
+    private List<AccountModel> accounts = new();
+    private string errorMessage = string.Empty;
+    private bool successMessage = false;
+    private bool isSubmitting = false;
+    private bool isLoadingData = true;
+
+    protected override void OnInitialized()
+    {
+        executor ??= new ExecutorModel();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReferenceData();
+    }
+
+    private async Task LoadReferenceData()
+    {
+        isLoadingData = true;
+        
+        try
+        {
+            accounts = await AccountService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки данных: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingData = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (executor == null) return;
+        
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = false;
+
+        try
+        {
+            var result = await ExecutorService.CreateAsync(executor);
+            
+            if (result != null)
+            {
+                successMessage = true;
+                await Task.Delay(1500);
+                Navigation.NavigateTo("/executors");
+            }
+            else
+            {
+                errorMessage = "Ошибка при создании исполнителя.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
+

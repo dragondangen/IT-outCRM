@@ -1,0 +1,54 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>IT-outCRM</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Перенаправление...</span>
+            </div>
+            <p class="mt-3">Перенаправление на панель управления...</p>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="container-fluid vh-100 d-flex align-items-center justify-content-center bg-light">
+            <div class="text-center">
+                <h1 class="display-3 mb-4">🚀 IT-outCRM</h1>
+                <p class="lead mb-4">Современная система управления взаимоотношениями с клиентами</p>
+                <div class="d-flex gap-3 justify-content-center">
+                    <a href="/login" class="btn btn-primary btn-lg px-5">Войти</a>
+                    <a href="/register" class="btn btn-outline-primary btn-lg px-5">Регистрация</a>
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .vh-100 {
+        min-height: 100vh;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            if (authState?.User?.Identity?.IsAuthenticated == true)
+            {
+                // Авторизованные пользователи автоматически перенаправляются на Dashboard
+                Navigation.NavigateTo("/dashboard", forceLoad: false);
+            }
+        }
+    }
+}

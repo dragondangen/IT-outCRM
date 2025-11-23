@@ -1,0 +1,268 @@
+@page "/profile"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Профиль - IT-outCRM</PageTitle>
+
+<div class="profile-container">
+    <AuthorizeView>
+        <Authorized>
+            <div class="profile-header">
+                <div class="avatar-xl">
+                    @GetInitials(context.User.Identity?.Name ?? "?")
+                </div>
+                <div>
+                    <h2>@context.User.Identity?.Name</h2>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-shield-check"></i>
+                        @GetUserRole(context.User)
+                    </p>
+                </div>
+            </div>
+
+            <div class="profile-cards">
+                <div class="profile-card">
+                    <h5><i class="bi bi-person-circle"></i> Личная информация</h5>
+                    <div class="info-list">
+                        <div class="info-item">
+                            <label>Имя пользователя:</label>
+                            <span>@context.User.Identity?.Name</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Роль:</label>
+                            <span class="badge bg-primary">@GetUserRole(context.User)</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Статус:</label>
+                            <span class="badge bg-success">Активен</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Тип аутентификации:</label>
+                            <span>@context.User.Identity?.AuthenticationType</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-card">
+                    <h5><i class="bi bi-key"></i> Безопасность</h5>
+                    <div class="security-actions">
+                        <button class="btn btn-outline-primary btn-sm" disabled>
+                            <i class="bi bi-lock"></i> Сменить пароль
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                            <i class="bi bi-shield-lock"></i> Настройки безопасности
+                        </button>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">
+                        <i class="bi bi-info-circle"></i> Функции скоро будут доступны
+                    </p>
+                </div>
+
+                @if (IsInRole(context.User, "Admin"))
+                {
+                    <div class="profile-card admin-card">
+                        <h5><i class="bi bi-shield-fill-exclamation"></i> Администраторские права</h5>
+                        <p>У вас есть полный доступ ко всем функциям системы:</p>
+                        <ul>
+                            <li>Управление всеми заказами</li>
+                            <li>Управление всеми клиентами</li>
+                            <li>Доступ ко всей статистике</li>
+                            <li>Управление пользователями (скоро)</li>
+                        </ul>
+                    </div>
+                }
+                else if (IsInRole(context.User, "Manager"))
+                {
+                    <div class="profile-card manager-card">
+                        <h5><i class="bi bi-briefcase"></i> Права менеджера</h5>
+                        <p>Вы можете:</p>
+                        <ul>
+                            <li>Создавать и редактировать заказы</li>
+                            <li>Управлять клиентами</li>
+                            <li>Просматривать статистику</li>
+                            <li>Работать с отчетами</li>
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="profile-card client-card">
+                        <h5><i class="bi bi-person"></i> Клиентская учетная запись</h5>
+                        <p>Вы можете:</p>
+                        <ul>
+                            <li>Просматривать свои заказы</li>
+                            <li>Создавать новые заказы</li>
+                            <li>Отслеживать статус заказов</li>
+                        </ul>
+                        <button class="btn btn-primary btn-sm mt-2" @onclick='() => Navigation.NavigateTo("/my-orders")'>
+                            <i class="bi bi-box-seam"></i> Мои заказы
+                        </button>
+                    </div>
+                }
+
+                <div class="profile-card">
+                    <h5><i class="bi bi-clock-history"></i> Активность</h5>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <i class="bi bi-check-circle text-success"></i>
+                            <span>Успешный вход в систему</span>
+                        </div>
+                        <div class="activity-item">
+                            <i class="bi bi-info-circle text-info"></i>
+                            <span>История активности скоро будет доступна</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+<style>
+    .profile-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .avatar-xl {
+        width: 100px;
+        height: 100px;
+        background: white;
+        color: #667eea;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .profile-header h2 {
+        margin: 0;
+        font-size: 2rem;
+    }
+
+    .profile-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .profile-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .profile-card h5 {
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-item label {
+        font-weight: 600;
+        color: #666;
+    }
+
+    .security-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .admin-card {
+        border-left: 4px solid #dc3545;
+    }
+
+    .manager-card {
+        border-left: 4px solid #ffc107;
+    }
+
+    .client-card {
+        border-left: 4px solid #0dcaf0;
+    }
+
+    .activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .activity-item i {
+        font-size: 1.2rem;
+    }
+</style>
+
+@code {
+    private string GetUserRole(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Admin")) return "Администратор";
+        if (user.IsInRole("Manager")) return "Менеджер";
+        return "Клиент";
+    }
+
+    private bool IsInRole(System.Security.Claims.ClaimsPrincipal user, string role)
+    {
+        return user.IsInRole(role);
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+    }
+}
+

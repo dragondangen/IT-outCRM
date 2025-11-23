@@ -1,0 +1,231 @@
+@page "/register"
+@using IT_outCRM.Blazor.Models
+@using IT_outCRM.Blazor.Services
+@inject IAuthService AuthService
+@inject IExecutorService ExecutorService
+@inject IAccountService AccountService
+@inject NavigationManager Navigation
+@inject ILogger<Register> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Регистрация - IT-outCRM</PageTitle>
+
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h3 class="card-title text-center mb-4">Регистрация</h3>
+                    
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <EditForm Model="RegisterModel" OnValidSubmit="HandleRegister" FormName="registerForm">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Имя пользователя</label>
+                            <InputText id="username" class="form-control" @bind-Value="RegisterModel!.Username" />
+                            <ValidationMessage For="@(() => RegisterModel!.Username)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <InputText id="email" type="email" class="form-control" @bind-Value="RegisterModel!.Email" />
+                            <ValidationMessage For="@(() => RegisterModel!.Email)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Пароль</label>
+                            <InputText id="password" type="password" class="form-control" @bind-Value="RegisterModel!.Password" />
+                            <ValidationMessage For="@(() => RegisterModel!.Password)" />
+                            <div class="password-requirements mt-2">
+                                <small class="d-block mb-1"><strong>Требования к паролю:</strong></small>
+                                <small class="d-block">✓ Минимум 8 символов</small>
+                                <small class="d-block">✓ Заглавная буква (A-Z)</small>
+                                <small class="d-block">✓ Строчная буква (a-z)</small>
+                                <small class="d-block">✓ Цифра (0-9)</small>
+                                <small class="d-block">✓ Спецсимвол (!@@#$%^&* и т.д.)</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Подтверждение пароля</label>
+                            <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="RegisterModel!.ConfirmPassword" />
+                            <ValidationMessage For="@(() => RegisterModel!.ConfirmPassword)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Роль</label>
+                            <InputSelect id="role" class="form-select" @bind-Value="RegisterModel!.Role">
+                                <option value="User">Пользователь</option>
+                                <option value="Manager">Менеджер</option>
+                                <option value="Admin">Администратор</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <InputCheckbox id="registerAsExecutor" class="form-check-input" @bind-Value="RegisterModel!.RegisterAsExecutor" />
+                                <label class="form-check-label" for="registerAsExecutor">
+                                    <strong>Зарегистрироваться как исполнитель заказов</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">Отметьте, если вы хотите выполнять заказы</small>
+                        </div>
+
+                        @if (RegisterModel!.RegisterAsExecutor)
+                        {
+                            <div class="mb-3 executor-section">
+                                <label for="specialization" class="form-label">Специализация <span class="text-danger">*</span></label>
+                                <InputText id="specialization" class="form-control" @bind-Value="RegisterModel!.ExecutorSpecialization" 
+                                          placeholder="Например: Веб-разработчик, Дизайнер, SMM-специалист..." />
+                                <ValidationMessage For="@(() => RegisterModel!.ExecutorSpecialization)" class="text-danger" />
+                                <small class="text-muted d-block mt-1">Укажите вашу специализацию или род деятельности</small>
+                            </div>
+                        }
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                Зарегистрироваться
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    <div class="text-center mt-3">
+                        <a href="/login" class="text-decoration-none">Уже есть аккаунт? Войти</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .password-requirements {
+        background: #f8f9fa;
+        border-left: 3px solid #0d6efd;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    .password-requirements small {
+        color: #6c757d;
+        line-height: 1.8;
+    }
+
+    .executor-section {
+        background: #e7f3ff;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+</style>
+
+@code {
+    [SupplyParameterFromForm]
+    private RegisterModel? RegisterModel { get; set; }
+    
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override void OnInitialized()
+    {
+        RegisterModel ??= new RegisterModel();
+    }
+
+    private async Task HandleRegister()
+    {
+        if (RegisterModel == null) return;
+        
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var result = await AuthService.RegisterAsync(RegisterModel);
+            
+            if (result != null)
+            {
+                Logger.LogInformation("User registered successfully: {Username}", result.Username);
+
+                // Если пользователь хочет зарегистрироваться как исполнитель
+                if (RegisterModel.RegisterAsExecutor && !string.IsNullOrWhiteSpace(RegisterModel.ExecutorSpecialization))
+                {
+                    Logger.LogInformation("Creating executor profile for user: {Username}", result.Username);
+                    
+                    try
+                    {
+                        // Сначала нужно получить или создать Account
+                        var accounts = await AccountService.GetAllAsync();
+                        var defaultAccount = accounts.FirstOrDefault();
+
+                        if (defaultAccount == null)
+                        {
+                            Logger.LogWarning("No accounts found. Executor profile cannot be created without an account.");
+                            errorMessage = "Регистрация успешна, но профиль исполнителя не был создан. Обратитесь к администратору.";
+                        }
+                        else
+                        {
+                            var executor = new ExecutorModel
+                            {
+                                Id = Guid.NewGuid(),
+                                AccountId = defaultAccount.Id,
+                                AccountName = result.Username, // Используем username как имя аккаунта
+                                Specialization = RegisterModel.ExecutorSpecialization
+                            };
+
+                            var executorResult = await ExecutorService.CreateAsync(executor);
+                            
+                            if (executorResult != null)
+                            {
+                                Logger.LogInformation("Executor profile created successfully for user: {Username}", result.Username);
+                            }
+                            else
+                            {
+                                Logger.LogWarning("Failed to create executor profile for user: {Username}", result.Username);
+                            }
+                        }
+                    }
+                    catch (Exception exEx)
+                    {
+                        Logger.LogError(exEx, "Error creating executor profile");
+                        // Не показываем ошибку пользователю, т.к. регистрация прошла успешно
+                    }
+                }
+                
+                // Успешная регистрация - небольшая задержка для обновления состояния
+                await Task.Delay(100);
+                
+                // Перенаправляем на Dashboard без полной перезагрузки
+                Navigation.NavigateTo("/dashboard", forceLoad: false);
+            }
+            else
+            {
+                errorMessage = "Ошибка при регистрации. Возможно, пользователь с таким именем уже существует.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during registration");
+            errorMessage = $"Ошибка при регистрации: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

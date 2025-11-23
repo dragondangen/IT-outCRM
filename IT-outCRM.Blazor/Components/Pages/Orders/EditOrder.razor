@@ -1,0 +1,347 @@
+@page "/orders/edit/{id:guid}"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IOrderService OrderService
+@inject ICustomerService CustomerService
+@inject IExecutorService ExecutorService
+@inject IOrderStatusService OrderStatusService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Редактирование заказа - IT-outCRM</PageTitle>
+
+<div class="edit-order-container">
+    <div class="page-header">
+        <div>
+            <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo($"/orders/{Id}")'>
+                <i class="bi bi-arrow-left"></i> Назад к деталям заказа
+            </button>
+            <h2>✏️ Редактирование заказа</h2>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (successMessage)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> Заказ успешно обновлен!
+            <button type="button" class="btn-close" @onclick="() => successMessage = false"></button>
+        </div>
+    }
+
+    @if (isLoadingData)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка данных...</p>
+        </div>
+    }
+    else if (order == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> Заказ не найден
+        </div>
+    }
+    else
+    {
+        <div class="form-card">
+            <EditForm Model="order" OnValidSubmit="HandleSubmit" FormName="editOrderForm">
+                <DataAnnotationsValidator />
+                
+                <div class="form-section">
+                    <h5><i class="bi bi-info-circle"></i> Основная информация</h5>
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Название заказа <span class="text-danger">*</span></label>
+                        <InputText id="name" class="form-control" @bind-Value="order!.Name" placeholder="Введите название заказа" />
+                        <ValidationMessage For="@(() => order!.Name)" class="text-danger" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Описание</label>
+                        <InputTextArea id="description" class="form-control" rows="4" @bind-Value="order!.Description" placeholder="Подробное описание заказа..." />
+                        <ValidationMessage For="@(() => order!.Description)" class="text-danger" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Стоимость <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-cash"></i></span>
+                            <InputNumber id="price" class="form-control" @bind-Value="order!.Price" placeholder="0.00" />
+                        </div>
+                        <ValidationMessage For="@(() => order!.Price)" class="text-danger" />
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h5><i class="bi bi-people"></i> Участники</h5>
+                    
+                    <div class="mb-3">
+                        <label for="customer" class="form-label">Клиент <span class="text-danger">*</span></label>
+                        @if (customers.Any())
+                        {
+                            <InputSelect id="customer" class="form-select" @bind-Value="order!.CustomerId">
+                                <option value="@Guid.Empty">-- Выберите клиента --</option>
+                                @foreach (var customer in customers)
+                                {
+                                    <option value="@customer.Id">@customer.AccountName (@customer.CompanyName)</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => order!.CustomerId)" class="text-danger" />
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="executor" class="form-label">Исполнитель <span class="text-danger">*</span></label>
+                        @if (executors.Any())
+                        {
+                            <InputSelect id="executor" class="form-select" @bind-Value="order!.ExecutorId">
+                                <option value="@Guid.Empty">-- Выберите исполнителя --</option>
+                                @foreach (var executor in executors)
+                                {
+                                    <option value="@executor.Id">@executor.AccountName (@executor.Specialization)</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => order!.ExecutorId)" class="text-danger" />
+                        }
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h5><i class="bi bi-card-checklist"></i> Статус</h5>
+                    
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Статус заказа <span class="text-danger">*</span></label>
+                        @if (orderStatuses.Any())
+                        {
+                            <InputSelect id="status" class="form-select" @bind-Value="order!.OrderStatusId">
+                                <option value="@Guid.Empty">-- Выберите статус --</option>
+                                @foreach (var status in orderStatuses)
+                                {
+                                    <option value="@status.Id">@status.Name</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => order!.OrderStatusId)" class="text-danger" />
+                        }
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo($"/orders/{Id}")'>
+                        <i class="bi bi-x-circle"></i> Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        <i class="bi bi-check-circle"></i> Сохранить изменения
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+<style>
+    .edit-order-container {
+        padding: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .page-header h2 {
+        margin: 10px 0 0 0;
+        color: #333;
+    }
+
+    .loading-container {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-section {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .form-section:last-of-type {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .form-section h5 {
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 8px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 10px 15px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .input-group-text {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-right: none;
+        border-radius: 10px 0 0 10px;
+    }
+
+    .input-group .form-control {
+        border-left: none;
+        border-radius: 0 10px 10px 0;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #e9ecef;
+    }
+
+    .form-actions .btn {
+        min-width: 150px;
+    }
+
+    .text-danger {
+        font-size: 0.875rem;
+        margin-top: 5px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private OrderModel? order { get; set; }
+    
+    private List<CustomerModel> customers = new();
+    private List<ExecutorModel> executors = new();
+    private List<OrderStatusModel> orderStatuses = new();
+    private string errorMessage = string.Empty;
+    private bool successMessage = false;
+    private bool isSubmitting = false;
+    private bool isLoadingData = true;
+
+    protected override void OnInitialized()
+    {
+        order ??= new OrderModel();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoadingData = true;
+        
+        try
+        {
+            var orderTask = OrderService.GetByIdAsync(Id);
+            var customerTask = CustomerService.GetAllAsync();
+            var executorTask = ExecutorService.GetAllAsync();
+            var statusTask = OrderStatusService.GetAllAsync();
+            
+            await Task.WhenAll(orderTask, customerTask, executorTask, statusTask);
+            
+            order = await orderTask;
+            customers = await customerTask;
+            executors = await executorTask;
+            orderStatuses = await statusTask;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки данных: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingData = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (order == null) return;
+        
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = false;
+
+        try
+        {
+            // Убедимся, что Id установлен
+            order.Id = Id;
+            var result = await OrderService.UpdateAsync(order);
+            
+            if (result != null)
+            {
+                successMessage = true;
+                await Task.Delay(1500);
+                Navigation.NavigateTo($"/orders/{Id}");
+            }
+            else
+            {
+                errorMessage = "Ошибка при обновлении заказа.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
+

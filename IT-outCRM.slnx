@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="IT-outCRM.Application/IT-outCRM.Application.csproj" Id="378d63dd-ca17-4a3c-9e8f-1db0ce92bef6" />
+  <Project Path="IT-outCRM.Blazor/IT-outCRM.Blazor.csproj" Id="d335086a-b723-4680-9ece-3b83b8072a8d" />
   <Project Path="IT-outCRM.Domain/IT-outCRM.Domain.csproj" />
   <Project Path="IT-outCRM.Infrastructure/IT-outCRM.Infrastructure.csproj" />
   <Project Path="IT-outCRM\IT-outCRM.csproj" />

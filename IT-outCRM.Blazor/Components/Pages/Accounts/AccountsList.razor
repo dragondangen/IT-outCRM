@@ -1,0 +1,184 @@
+@page "/accounts"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,Manager")]
+@inject IAccountService AccountService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Аккаунты - IT-outCRM</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="page-header">
+        <div>
+            <h2>👤 Управление аккаунтами</h2>
+            <p class="text-muted">Список всех аккаунтов в системе</p>
+        </div>
+        <button class="btn btn-primary btn-lg" @onclick="CreateAccount">
+            <i class="bi bi-plus-circle"></i> Добавить аккаунт
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка аккаунтов...</p>
+        </div>
+    }
+    else
+    {
+        @if (accounts.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Компания</th>
+                            <th>Статус</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var account in accounts)
+                        {
+                            <tr>
+                                <td><strong>@account.CompanyName</strong></td>
+                                <td>
+                                    <span class="badge bg-info">@account.AccountStatusName</span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-warning me-1" @onclick="() => EditAccount(account.Id)" title="Редактировать">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteAccount(account.Id)" title="Удалить">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-person-badge"></i>
+                <h3>Нет аккаунтов</h3>
+                <p class="text-muted">Добавьте первый аккаунт, чтобы начать работу</p>
+                <button class="btn btn-primary" @onclick="CreateAccount">
+                    <i class="bi bi-plus-circle"></i> Добавить аккаунт
+                </button>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .loading-container, .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    .table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+</style>
+
+@code {
+    private List<AccountModel> accounts = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+    }
+
+    private async Task LoadAccounts()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            accounts = await AccountService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки аккаунтов: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CreateAccount()
+    {
+        Navigation.NavigateTo("/accounts/create");
+    }
+
+    private void EditAccount(Guid id)
+    {
+        Navigation.NavigateTo($"/accounts/edit/{id}");
+    }
+
+    private async Task DeleteAccount(Guid id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Вы уверены, что хотите удалить этот аккаунт?"))
+        {
+            try
+            {
+                var success = await AccountService.DeleteAsync(id);
+                if (success)
+                {
+                    await LoadAccounts();
+                }
+                else
+                {
+                    errorMessage = "Ошибка при удалении аккаунта";
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Ошибка: {ex.Message}";
+            }
+        }
+    }
+}
+
