@@ -1,0 +1,442 @@
+@page "/my-services"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Мои услуги - IT-outCRM</PageTitle>
+
+<div class="my-services-container">
+    <div class="page-header">
+        <div>
+            <h2>💼 Мои услуги</h2>
+            <p class="text-muted">Управляйте услугами, которые вы предлагаете клиентам</p>
+        </div>
+        <button class="btn btn-primary btn-lg" @onclick="ShowCreateModal">
+            <i class="bi bi-plus-circle"></i> Добавить услугу
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка ваших услуг...</p>
+        </div>
+    }
+    else
+    {
+        @if (services.Any())
+        {
+            <div class="services-grid">
+                @foreach (var service in filteredServices)
+                {
+                    <div class="service-card">
+                        <div class="service-card-header">
+                            <h5>@service.Name</h5>
+                            @if (service.IsActive)
+                            {
+                                <span class="badge bg-success">Активна</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Неактивна</span>
+                            }
+                        </div>
+                        <div class="service-card-body">
+                            <p class="description">@(string.IsNullOrEmpty(service.Description) ? "Нет описания" : (service.Description.Length > 150 ? service.Description.Substring(0, 150) + "..." : service.Description))</p>
+                            <div class="service-info">
+                                <div class="info-item">
+                                    <i class="bi bi-cash"></i>
+                                    <span>@service.Price.ToString("C")</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="bi bi-clock"></i>
+                                    <span>@service.Duration часов</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(service.Category))
+                                {
+                                    <div class="info-item">
+                                        <i class="bi bi-tag"></i>
+                                        <span>@service.Category</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="service-card-footer">
+                            <button class="btn btn-sm btn-outline-info" @onclick="() => ViewService(service)">
+                                <i class="bi bi-eye"></i> Просмотр
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => EditService(service)">
+                                <i class="bi bi-pencil"></i> Изменить
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(service)">
+                                <i class="bi bi-trash"></i> Удалить
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-briefcase"></i>
+                <h3>У вас пока нет услуг</h3>
+                <p class="text-muted">Добавьте первую услугу, чтобы клиенты могли её видеть и заказывать</p>
+                <button class="btn btn-primary" @onclick="ShowCreateModal">
+                    <i class="bi bi-plus-circle"></i> Добавить услугу
+                </button>
+            </div>
+        }
+    }
+</div>
+
+<!-- Модальное окно для создания/редактирования услуги -->
+@if (showModal)
+{
+    <div class="modal-backdrop" @onclick="CloseModal"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(editingService == null ? "Добавить услугу" : "Редактировать услугу")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="currentService" OnValidSubmit="SaveService">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Название услуги <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="currentService.Name" placeholder="Например: Разработка сайта" />
+                            <ValidationMessage For="@(() => currentService.Name)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Описание</label>
+                            <InputTextArea class="form-control" rows="4" @bind-Value="currentService.Description" placeholder="Подробное описание услуги..." />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Цена (₽) <span class="text-danger">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="currentService.Price" placeholder="0.00" />
+                                <ValidationMessage For="@(() => currentService.Price)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Длительность (часов) <span class="text-danger">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="currentService.Duration" placeholder="1" />
+                                <ValidationMessage For="@(() => currentService.Duration)" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Категория</label>
+                            <InputText class="form-control" @bind-Value="currentService.Category" placeholder="Например: Разработка, Дизайн, Консультация" />
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <InputCheckbox class="form-check-input" @bind-Value="currentService.IsActive" />
+                            <label class="form-check-label">Услуга активна (видна клиентам)</label>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Отмена</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Сохранить
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .my-services-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        color: #333;
+    }
+
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .service-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .service-card-header {
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .service-card-header h5 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .service-card-body {
+        padding: 20px;
+    }
+
+    .description {
+        color: #666;
+        margin-bottom: 15px;
+        min-height: 60px;
+    }
+
+    .service-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #555;
+    }
+
+    .info-item i {
+        color: #667eea;
+        font-size: 1.1rem;
+    }
+
+    .service-card-footer {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+    }
+
+    .service-card-footer .btn {
+        flex: 1;
+    }
+
+    .loading-container, .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+    }
+
+    .modal.show {
+        display: block;
+        z-index: 1050;
+    }
+</style>
+
+@code {
+    private List<ServiceModel> services = new();
+    private List<ServiceModel> filteredServices = new();
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool showModal = false;
+    private ServiceModel? editingService = null;
+    private ServiceModel currentService = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServices();
+    }
+
+    private async Task LoadServices()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            // Пока используем mock данные, потом подключим API
+            await Task.Delay(500); // Симуляция загрузки
+            
+            // Mock данные для примера
+            services = new List<ServiceModel>
+            {
+                // Можно добавить примеры или оставить пустым
+            };
+            
+            filteredServices = services;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки услуг: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateModal()
+    {
+        editingService = null;
+        currentService = new ServiceModel
+        {
+            IsActive = true,
+            Duration = 1,
+            Price = 0
+        };
+        showModal = true;
+    }
+
+    private void EditService(ServiceModel service)
+    {
+        editingService = service;
+        currentService = new ServiceModel
+        {
+            Id = service.Id,
+            Name = service.Name,
+            Description = service.Description,
+            Price = service.Price,
+            Duration = service.Duration,
+            Category = service.Category,
+            IsActive = service.IsActive
+        };
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingService = null;
+        currentService = new ServiceModel();
+    }
+
+    private async Task SaveService()
+    {
+        try
+        {
+            if (editingService == null)
+            {
+                // Добавление новой услуги
+                currentService.Id = Guid.NewGuid();
+                services.Add(currentService);
+                successMessage = "Услуга успешно добавлена";
+            }
+            else
+            {
+                // Обновление существующей услуги
+                var index = services.FindIndex(s => s.Id == editingService.Id);
+                if (index >= 0)
+                {
+                    services[index] = currentService;
+                    successMessage = "Услуга успешно обновлена";
+                }
+            }
+            
+            filteredServices = services;
+            CloseModal();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка сохранения услуги: {ex.Message}";
+        }
+    }
+
+    private void ViewService(ServiceModel service)
+    {
+        // Можно добавить страницу просмотра или показать детали в модальном окне
+        editingService = service;
+        currentService = new ServiceModel
+        {
+            Id = service.Id,
+            Name = service.Name,
+            Description = service.Description,
+            Price = service.Price,
+            Duration = service.Duration,
+            Category = service.Category,
+            IsActive = service.IsActive
+        };
+        showModal = true;
+    }
+
+    private async Task ConfirmDelete(ServiceModel service)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Вы уверены, что хотите удалить услугу '{service.Name}'?");
+        if (confirmed)
+        {
+            services.Remove(service);
+            filteredServices = services;
+            successMessage = "Услуга успешно удалена";
+            StateHasChanged();
+        }
+    }
+}
+

@@ -1,0 +1,184 @@
+@page "/contactpersons"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@inject IContactPersonService ContactPersonService
+@inject ITokenStorage TokenStorage
+@inject NavigationManager Navigation
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Контактные лица - IT-outCRM</PageTitle>
+
+<AuthorizeView Roles="Admin,Manager,User">
+    <Authorized>
+        <div class="list-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-person-rolodex"></i> Контактные лица</h1>
+                <AuthorizeView Roles="Admin,Manager" Context="innerContext">
+                    <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/contactpersons/create")'>
+                        <i class="bi bi-plus-lg"></i> Создать контакт
+                    </button>
+                </AuthorizeView>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    <strong>Ошибка!</strong> @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="text-center my-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Загрузка данных...</p>
+                </div>
+            }
+            else if (contactPersons == null || !contactPersons.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Список контактных лиц пуст.
+                </div>
+            }
+            else
+            {
+                <div class="row">
+                    @foreach (var person in contactPersons)
+                    {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 shadow-sm hover-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h5 class="card-title mb-0 text-primary">@person.FullName</h5>
+                                        <span class="badge bg-info text-dark">@person.Role</span>
+                                    </div>
+                                    
+                                    <p class="card-text mb-2">
+                                        <i class="bi bi-envelope text-muted me-2"></i>
+                                        <a href="mailto:@person.Email" class="text-decoration-none text-dark">@person.Email</a>
+                                    </p>
+                                    
+                                    <p class="card-text">
+                                        <i class="bi bi-telephone text-muted me-2"></i>
+                                        <a href="tel:@person.PhoneNumber" class="text-decoration-none text-dark">@person.PhoneNumber</a>
+                                    </p>
+
+                                    <div class="mt-3 d-flex justify-content-end gap-2">
+                                        <AuthorizeView Roles="Admin,Manager" Context="actionContext">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick='() => Navigation.NavigateTo($"/contactpersons/edit/{person.Id}")'>
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </AuthorizeView>
+                                        <AuthorizeView Roles="Admin" Context="deleteContext">
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteContactPerson(person.Id)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </AuthorizeView>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .list-container {
+        padding: 20px;
+    }
+    .hover-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+    }
+    .hover-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+</style>
+
+@code {
+    private List<ContactPersonModel> contactPersons = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            var token = await TokenStorage.GetTokenAsync();
+            if (string.IsNullOrEmpty(token))
+            {
+                 await Task.Delay(200);
+                 token = await TokenStorage.GetTokenAsync();
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                ContactPersonService.SetToken(token);
+                contactPersons = await ContactPersonService.GetAllAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteContactPerson(Guid id)
+    {
+        if (!await IT_outCRM.Blazor.Services.JsInterop.Confirm(JSRuntime, "Вы уверены, что хотите удалить этот контакт?"))
+            return;
+
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                ContactPersonService.SetToken(token);
+                var success = await ContactPersonService.DeleteAsync(id);
+                if (success)
+                {
+                    await LoadData();
+                }
+                else
+                {
+                    errorMessage = "Не удалось удалить контакт. Возможно, он используется в других записях.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка удаления: {ex.Message}";
+        }
+    }
+
+    [Inject] IJSRuntime JSRuntime { get; set; } = default!;
+}

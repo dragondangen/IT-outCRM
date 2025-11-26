@@ -3,6 +3,7 @@
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
 @inject ICompanyService CompanyService
+@inject IContactPersonService ContactPersonService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
@@ -36,12 +37,18 @@
                     
                     <div class="mb-3">
                         <label for="name" class="form-label">Название <span class="text-danger">*</span></label>
-                        <InputText id="name" class="form-control" @bind-Value="company!.Name" placeholder="ООО Ромашка" />
+                        <InputText id="name" class="form-control" @bind-Value="company!.Name" placeholder="Ромашка" />
                         <ValidationMessage For="@(() => company!.Name)" class="text-danger" />
                     </div>
 
                     <div class="mb-3">
-                        <label for="inn" class="form-label">ИНН</label>
+                        <label for="legalForm" class="form-label">Юридическая форма <span class="text-danger">*</span></label>
+                        <InputText id="legalForm" class="form-control" @bind-Value="company!.LegalForm" placeholder="ООО, ИП, ОАО" />
+                        <ValidationMessage For="@(() => company!.LegalForm)" class="text-danger" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="inn" class="form-label">ИНН <span class="text-danger">*</span></label>
                         <InputText id="inn" class="form-control" @bind-Value="company!.Inn" placeholder="1234567890" />
                         <ValidationMessage For="@(() => company!.Inn)" class="text-danger" />
                     </div>
@@ -52,11 +59,40 @@
                         <ValidationMessage For="@(() => company!.Address)" class="text-danger" />
                     </div>
 
+                    <div class="mb-3">
+                        <label for="contactPerson" class="form-label">Контактное лицо <span class="text-danger">*</span></label>
+                        @if (isLoadingContacts)
+                        {
+                             <div class="d-flex align-items-center">
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Загрузка списка контактов...</span>
+                            </div>
+                        }
+                        else if (contactPersons == null || !contactPersons.Any())
+                        {
+                             <div class="text-warning">
+                                <i class="bi bi-exclamation-circle"></i> Нет доступных контактных лиц. 
+                                <a href="/contactpersons/create" target="_blank">Создать контакт</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <InputSelect id="contactPerson" class="form-select" @bind-Value="company!.ContactPersonId">
+                                <option value="@Guid.Empty">-- Выберите контактное лицо --</option>
+                                @foreach (var contact in contactPersons)
+                                {
+                                    <option value="@contact.Id">@contact.FullName (@contact.Role)</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => company!.ContactPersonId)" class="text-danger" />
+                        }
+                    </div>
+
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/companies")'>
                             <i class="bi bi-x-circle"></i> Отмена
                         </button>
-                        <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                        <button type="submit" class="btn btn-success" disabled="@(isSubmitting || isLoadingContacts)">
                             @if (isSubmitting)
                             {
                                 <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -98,13 +134,13 @@
         color: #555;
     }
 
-    .form-control {
+    .form-control, .form-select {
         border-radius: 10px;
         border: 2px solid #e9ecef;
         padding: 10px 15px;
     }
 
-    .form-control:focus {
+    .form-control:focus, .form-select:focus {
         border-color: #11998e;
         box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.25);
     }
@@ -125,15 +161,63 @@
     
     private string errorMessage = string.Empty;
     private bool isSubmitting = false;
+    private bool isLoadingContacts = true;
+    private List<ContactPersonModel> contactPersons = new();
 
     protected override void OnInitialized()
     {
         company ??= new CompanyModel();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadContactPersons();
+        }
+    }
+
+    private async Task LoadContactPersons()
+    {
+        try
+        {
+            isLoadingContacts = true;
+            StateHasChanged();
+
+            var token = await TokenStorage.GetTokenAsync();
+            if (string.IsNullOrEmpty(token))
+            {
+                 // Retry logic for token
+                 await Task.Delay(200);
+                 token = await TokenStorage.GetTokenAsync();
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                ContactPersonService.SetToken(token);
+                contactPersons = await ContactPersonService.GetAllAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading contacts: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingContacts = false;
+            StateHasChanged();
+        }
+    }
+
     private async Task HandleSubmit()
     {
         if (company == null) return;
+
+        if (company.ContactPersonId == Guid.Empty)
+        {
+            errorMessage = "Выберите контактное лицо!";
+            return;
+        }
         
         isSubmitting = true;
         errorMessage = string.Empty;
@@ -144,16 +228,9 @@
             var token = await TokenStorage.GetTokenAsync();
             if (string.IsNullOrEmpty(token))
             {
-                // Retry once with delay if JS was slow
-                await Task.Delay(100);
-                token = await TokenStorage.GetTokenAsync();
-                
-                if (string.IsNullOrEmpty(token))
-                {
-                    errorMessage = "Ошибка авторизации: токен не найден. Попробуйте перезайти в систему.";
-                    isSubmitting = false;
-                    return;
-                }
+                errorMessage = "Ошибка авторизации: токен не найден. Попробуйте перезайти в систему.";
+                isSubmitting = false;
+                return;
             }
             
             CompanyService.SetToken(token);

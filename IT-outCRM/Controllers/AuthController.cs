@@ -135,6 +135,32 @@ namespace IT_outCRM.Controllers
             var users = await _authService.GetAllUsersAsync();
             return Ok(users);
         }
+
+        /// <summary>
+        /// Удалить (деактивировать) пользователя
+        /// </summary>
+        /// <param name="id">ID пользователя</param>
+        /// <returns>Статус операции</returns>
+        /// <remarks>
+        /// Доступно только пользователям с ролью Admin
+        /// </remarks>
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("users/{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> DeleteUser(Guid id)
+        {
+            try 
+            {
+                await _authService.DeleteUserAsync(id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
     }
 }
-

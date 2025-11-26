@@ -20,6 +20,15 @@ namespace IT_outCRM.Blazor.Services
             _authStateProvider = authStateProvider;
         }
 
+        public void SetToken(string token)
+        {
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+
         public async Task<AuthResponse?> LoginAsync(LoginModel model)
         {
             try
@@ -80,6 +89,9 @@ namespace IT_outCRM.Blazor.Services
                 Console.WriteLine($"=== REGISTER START ===");
                 Console.WriteLine($"Username: {model.Username}");
                 Console.WriteLine($"Email: {model.Email}");
+                Console.WriteLine($"Role: {model.Role}");
+                Console.WriteLine($"Company: {model.CompanyName}");
+                Console.WriteLine($"UserType: {model.UserType}");
                 Console.WriteLine($"API URL: {_httpClient.BaseAddress}api/auth/register");
                 
                 // Конвертируем UI модель в DTO для backend
@@ -88,7 +100,12 @@ namespace IT_outCRM.Blazor.Services
                     Username = model.Username,
                     Email = model.Email,
                     Password = model.Password,
-                    Role = model.Role
+                    Role = model.Role,
+                    CompanyName = model.CompanyName,
+                    Inn = model.Inn,
+                    LegalForm = model.LegalForm,
+                    Phone = model.Phone,
+                    UserType = model.UserType
                 };
 
                 var response = await _httpClient.PostAsJsonAsync("api/auth/register", registerDto);
@@ -125,7 +142,7 @@ namespace IT_outCRM.Blazor.Services
                     }
                     else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                     {
-                        throw new InvalidOperationException("Проверьте правильность введенных данных. Пароль должен содержать минимум 8 символов, заглавную букву, строчную букву, цифру и спецсимвол.");
+                        throw new InvalidOperationException($"Ошибка регистрации. Проверьте введенные данные. Сервер ответил: {errorContent}");
                     }
                 }
                 
@@ -160,6 +177,43 @@ namespace IT_outCRM.Blazor.Services
         {
             return await _tokenStorage.GetTokenAsync();
         }
+
+        public async Task<List<UserModel>> GetAllUsersAsync()
+        {
+            try 
+            {
+                var response = await _httpClient.GetAsync("api/auth/users");
+                if (response.IsSuccessStatusCode)
+                {
+                    var users = await response.Content.ReadFromJsonAsync<List<UserModel>>();
+                    return users ?? new List<UserModel>();
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[AuthService] Failed to get users: {error}");
+                    return new List<UserModel>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Exception getting users: {ex.Message}");
+                return new List<UserModel>();
+            }
+        }
+
+        public async Task<bool> DeleteUserAsync(Guid userId)
+        {
+            try 
+            {
+                var response = await _httpClient.DeleteAsync($"api/auth/users/{userId}");
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Exception deleting user: {ex.Message}");
+                return false;
+            }
+        }
     }
 }
-

@@ -69,6 +69,12 @@ builder.Services.AddHttpClient<IOrderStatusService, OrderStatusService>(client =
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+builder.Services.AddHttpClient<IContactPersonService, ContactPersonService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 // Add Authentication with a default scheme for Blazor Server
 builder.Services.AddAuthentication("BlazorAuth")
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, BlazorAuthenticationHandler>("BlazorAuth", null);

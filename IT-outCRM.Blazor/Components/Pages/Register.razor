@@ -2,8 +2,6 @@
 @using IT_outCRM.Blazor.Models
 @using IT_outCRM.Blazor.Services
 @inject IAuthService AuthService
-@inject IExecutorService ExecutorService
-@inject IAccountService AccountService
 @inject NavigationManager Navigation
 @inject ILogger<Register> Logger
 @rendermode InteractiveServer
@@ -11,97 +9,126 @@
 <PageTitle>Регистрация - IT-outCRM</PageTitle>
 
 <div class="container">
-    <div class="row justify-content-center mt-5">
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-body">
-                    <h3 class="card-title text-center mb-4">Регистрация</h3>
+    <div class="row justify-content-center mt-5 mb-5">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <h3 class="card-title text-center mb-0">
+                        <i class="bi bi-person-plus-fill me-2"></i>Регистрация
+                    </h3>
+                </div>
+                <div class="card-body p-4">
                     
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
-                        <div class="alert alert-danger" role="alert">
-                            @errorMessage
+                        <div class="alert alert-danger d-flex align-items-center" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"></i>
+                            <div>
+                                @errorMessage
+                            </div>
                         </div>
                     }
 
                     <EditForm Model="RegisterModel" OnValidSubmit="HandleRegister" FormName="registerForm">
                         <DataAnnotationsValidator />
                         
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Имя пользователя</label>
-                            <InputText id="username" class="form-control" @bind-Value="RegisterModel!.Username" />
-                            <ValidationMessage For="@(() => RegisterModel!.Username)" />
-                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-primary mb-3"><i class="bi bi-shield-lock me-2"></i>Учетная запись</h5>
+                                
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Имя пользователя <span class="text-danger">*</span></label>
+                                    <InputText id="username" class="form-control" @bind-Value="RegisterModel!.Username" placeholder="user123" />
+                                    <ValidationMessage For="@(() => RegisterModel!.Username)" />
+                                </div>
 
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <InputText id="email" type="email" class="form-control" @bind-Value="RegisterModel!.Email" />
-                            <ValidationMessage For="@(() => RegisterModel!.Email)" />
-                        </div>
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                                    <InputText id="email" type="email" class="form-control" @bind-Value="RegisterModel!.Email" placeholder="user@example.com" />
+                                    <ValidationMessage For="@(() => RegisterModel!.Email)" />
+                                </div>
 
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Пароль</label>
-                            <InputText id="password" type="password" class="form-control" @bind-Value="RegisterModel!.Password" />
-                            <ValidationMessage For="@(() => RegisterModel!.Password)" />
-                            <div class="password-requirements mt-2">
-                                <small class="d-block mb-1"><strong>Требования к паролю:</strong></small>
-                                <small class="d-block">✓ Минимум 8 символов</small>
-                                <small class="d-block">✓ Заглавная буква (A-Z)</small>
-                                <small class="d-block">✓ Строчная буква (a-z)</small>
-                                <small class="d-block">✓ Цифра (0-9)</small>
-                                <small class="d-block">✓ Спецсимвол (!@@#$%^&* и т.д.)</small>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Пароль <span class="text-danger">*</span></label>
+                                    <InputText id="password" type="password" class="form-control" @bind-Value="RegisterModel!.Password" />
+                                    <ValidationMessage For="@(() => RegisterModel!.Password)" />
+                                    <div class="password-requirements mt-2">
+                                        <small class="d-block text-muted" style="font-size: 0.8rem;">Минимум 8 символов, A-Z, a-z, 0-9, спецсимвол</small>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Подтверждение <span class="text-danger">*</span></label>
+                                    <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="RegisterModel!.ConfirmPassword" />
+                                    <ValidationMessage For="@(() => RegisterModel!.ConfirmPassword)" />
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Компания и роль</h5>
+                                
+                                <div class="mb-3">
+                                    <label for="companyName" class="form-label">Название компании <span class="text-danger">*</span></label>
+                                    <InputText id="companyName" class="form-control" @bind-Value="RegisterModel!.CompanyName" placeholder="ООО Ромашка" />
+                                    <ValidationMessage For="@(() => RegisterModel!.CompanyName)" />
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <label for="inn" class="form-label">ИНН <span class="text-danger">*</span></label>
+                                        <InputText id="inn" class="form-control" @bind-Value="RegisterModel!.Inn" placeholder="1234567890" />
+                                        <ValidationMessage For="@(() => RegisterModel!.Inn)" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="legalForm" class="form-label">Орг. форма</label>
+                                        <InputText id="legalForm" class="form-control" @bind-Value="RegisterModel!.LegalForm" placeholder="ООО, ИП" />
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Телефон</label>
+                                    <InputText id="phone" class="form-control" @bind-Value="RegisterModel!.Phone" placeholder="+7 (999) 000-00-00" />
+                                </div>
+
+                                <div class="mb-3 p-3 bg-light rounded border">
+                                    <label class="form-label fw-bold mb-2">Тип аккаунта <span class="text-danger">*</span></label>
+                                    
+                                    <div class="form-check mb-2">
+                                        <InputRadioGroup @bind-Value="RegisterModel!.UserType">
+                                            <div class="form-check">
+                                                <InputRadio Value="@("Customer")" class="form-check-input" id="typeCustomer" />
+                                                <label class="form-check-label" for="typeCustomer">
+                                                    <i class="bi bi-basket me-1 text-success"></i> <strong>Заказчик (Клиент)</strong>
+                                                    <div class="text-muted small">Размещаю заказы на выполнение работ</div>
+                                                </label>
+                                            </div>
+                                            <div class="form-check mt-2">
+                                                <InputRadio Value="@("Executor")" class="form-check-input" id="typeExecutor" />
+                                                <label class="form-check-label" for="typeExecutor">
+                                                    <i class="bi bi-tools me-1 text-warning"></i> <strong>Исполнитель</strong>
+                                                    <div class="text-muted small">Выполняю заказы клиентов</div>
+                                                </label>
+                                            </div>
+                                        </InputRadioGroup>
+                                    </div>
+                                    <ValidationMessage For="@(() => RegisterModel!.UserType)" />
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="confirmPassword" class="form-label">Подтверждение пароля</label>
-                            <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="RegisterModel!.ConfirmPassword" />
-                            <ValidationMessage For="@(() => RegisterModel!.ConfirmPassword)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="role" class="form-label">Роль</label>
-                            <InputSelect id="role" class="form-select" @bind-Value="RegisterModel!.Role">
-                                <option value="User">Пользователь</option>
-                                <option value="Manager">Менеджер</option>
-                                <option value="Admin">Администратор</option>
-                            </InputSelect>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <InputCheckbox id="registerAsExecutor" class="form-check-input" @bind-Value="RegisterModel!.RegisterAsExecutor" />
-                                <label class="form-check-label" for="registerAsExecutor">
-                                    <strong>Зарегистрироваться как исполнитель заказов</strong>
-                                </label>
-                            </div>
-                            <small class="text-muted">Отметьте, если вы хотите выполнять заказы</small>
-                        </div>
-
-                        @if (RegisterModel!.RegisterAsExecutor)
-                        {
-                            <div class="mb-3 executor-section">
-                                <label for="specialization" class="form-label">Специализация <span class="text-danger">*</span></label>
-                                <InputText id="specialization" class="form-control" @bind-Value="RegisterModel!.ExecutorSpecialization" 
-                                          placeholder="Например: Веб-разработчик, Дизайнер, SMM-специалист..." />
-                                <ValidationMessage For="@(() => RegisterModel!.ExecutorSpecialization)" class="text-danger" />
-                                <small class="text-muted d-block mt-1">Укажите вашу специализацию или род деятельности</small>
-                            </div>
-                        }
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary btn-lg" disabled="@isLoading">
                                 @if (isLoading)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                                 }
-                                Зарегистрироваться
+                                <i class="bi bi-check-circle-fill me-2"></i> Зарегистрироваться
                             </button>
                         </div>
                     </EditForm>
 
-                    <div class="text-center mt-3">
-                        <a href="/login" class="text-decoration-none">Уже есть аккаунт? Войти</a>
+                    <div class="text-center mt-4">
+                        <p class="text-muted">Уже есть аккаунт? <a href="/login" class="fw-bold text-primary text-decoration-none">Войти</a></p>
                     </div>
                 </div>
             </div>
@@ -112,26 +139,13 @@
 <style>
     .password-requirements {
         background: #f8f9fa;
-        border-left: 3px solid #0d6efd;
-        padding: 10px;
-        border-radius: 5px;
+        padding: 5px;
+        border-radius: 4px;
     }
     
-    .password-requirements small {
-        color: #6c757d;
-        line-height: 1.8;
-    }
-
-    .executor-section {
-        background: #e7f3ff;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 4px solid #0d6efd;
-    }
-
-    .form-check-input:checked {
-        background-color: #0d6efd;
+    .form-control:focus, .form-select:focus {
         border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
     }
 </style>
 
@@ -156,35 +170,27 @@
 
         try
         {
+            // Always register as User role initially, but with extended data
+            RegisterModel.Role = "User"; 
+
             var result = await AuthService.RegisterAsync(RegisterModel);
             
             if (result != null)
             {
-                Logger.LogInformation("User registered successfully: {Username}", result.Username);
-
-                // Если пользователь хочет зарегистрироваться как исполнитель
-                // TODO: Реализовать создание профиля исполнителя после того, как пользователь будет иметь доступ к созданию
-                if (RegisterModel.RegisterAsExecutor)
-                {
-                    Logger.LogInformation("User {Username} requested executor registration. Profile should be created manually.", result.Username);
-                    // Временно пропускаем автоматическое создание, так как у нового пользователя нет прав на чтение аккаунтов.
-                }
+                Logger.LogInformation("User {Username} registered successfully with company {Company}", result.Username, RegisterModel.CompanyName);
                 
-                // Успешная регистрация - небольшая задержка для обновления состояния
                 await Task.Delay(100);
-                
-                // Перенаправляем на Dashboard без полной перезагрузки
                 Navigation.NavigateTo("/dashboard", forceLoad: false);
             }
             else
             {
-                errorMessage = "Ошибка при регистрации. Возможно, пользователь с таким именем уже существует.";
+                errorMessage = "Неизвестная ошибка при регистрации.";
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error during registration");
-            errorMessage = $"Ошибка при регистрации: {ex.Message}";
+            errorMessage = ex.Message;
         }
         finally
         {

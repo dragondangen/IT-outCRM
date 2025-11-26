@@ -28,8 +28,18 @@ namespace IT_outCRM.Blazor.Models
 
         public string Role { get; set; } = "User";
 
-        public bool RegisterAsExecutor { get; set; } = false;
-        public string? ExecutorSpecialization { get; set; }
+        // Extended Registration Fields
+        [Required(ErrorMessage = "Название компании обязательно")]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "ИНН обязателен")]
+        public string Inn { get; set; } = string.Empty;
+
+        public string LegalForm { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Выберите тип пользователя")]
+        public string UserType { get; set; } = "Customer"; // Customer or Executor
     }
 
     /// <summary>
@@ -41,6 +51,11 @@ namespace IT_outCRM.Blazor.Models
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string Role { get; set; } = "User";
+        
+        public string CompanyName { get; set; } = string.Empty;
+        public string Inn { get; set; } = string.Empty;
+        public string LegalForm { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string UserType { get; set; } = string.Empty;
     }
 }
-

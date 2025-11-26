@@ -5,13 +5,15 @@ using IT_outCRM.Application.Interfaces;
 using IT_outCRM.Application.Interfaces.Repositories;
 using IT_outCRM.Domain.Entity;
 
+using IT_outCRM.Application.Interfaces.Services;
+
 namespace IT_outCRM.Application.Services
 {
     /// <summary>
     /// Базовый класс для сервисов, реализующий общие CRUD операции
     /// Устраняет дублирование кода (DRY принцип)
     /// </summary>
-    public abstract class BaseService<TEntity, TDto, TCreateDto, TUpdateDto> 
+    public abstract class BaseService<TEntity, TDto, TCreateDto, TUpdateDto> : IBaseService<TDto, TCreateDto, TUpdateDto>
         where TEntity : class
         where TDto : class
         where TCreateDto : class

@@ -1,4 +1,5 @@
 using IT_outCRM.Middleware;
+using Microsoft.EntityFrameworkCore;
 
 namespace IT_outCRM.Middleware
 {
@@ -50,6 +51,19 @@ namespace IT_outCRM.Middleware
                     response.Details = environment.IsDevelopment() ? exception.Message : null;
                     break;
 
+                case DbUpdateException dbEx:
+                    response.StatusCode = (int)System.Net.HttpStatusCode.Conflict;
+                    response.Message = "Ошибка целостности данных. Возможно, удаляемая запись используется в других таблицах.";
+                    
+                    // Check for specific Postgres error code for FK violation (23503)
+                    if (dbEx.InnerException != null && dbEx.InnerException.Message.Contains("23503"))
+                    {
+                        response.Message = "Невозможно удалить запись, так как она используется в других объектах (например, контактное лицо привязано к компании). Сначала удалите или измените зависимые объекты.";
+                    }
+                    
+                    response.Details = environment.IsDevelopment() ? dbEx.InnerException?.Message ?? dbEx.Message : null;
+                    break;
+
                 default:
                     response.StatusCode = (int)System.Net.HttpStatusCode.InternalServerError;
                     response.Message = "Внутренняя ошибка сервера";
@@ -63,4 +77,3 @@ namespace IT_outCRM.Middleware
         }
     }
 }
-

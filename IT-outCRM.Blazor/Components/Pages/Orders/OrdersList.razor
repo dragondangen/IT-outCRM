@@ -2,10 +2,13 @@
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inject IOrderService OrderService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Заказы - IT-outCRM</PageTitle>
@@ -15,12 +18,14 @@
         <div class="orders-container">
             <div class="page-header">
                 <div>
-                    <h2><i class="bi bi-box-seam"></i> Управление заказами</h2>
-                    <p class="text-muted">Всего заказов: @filteredOrders.Count</p>
+                    <h2><i class="bi bi-box-seam"></i> @GetPageTitle()</h2>
+                    <p class="text-muted">@GetPageDescription()</p>
                 </div>
-                <button class="btn btn-primary btn-lg" @onclick="CreateOrder">
-                    <i class="bi bi-plus-circle"></i> Создать заказ
-                </button>
+                <AuthorizeView Roles="Admin,Manager,Client">
+                    <button class="btn btn-primary btn-lg" @onclick="CreateOrder">
+                        <i class="bi bi-plus-circle"></i> Создать заказ
+                    </button>
+                </AuthorizeView>
             </div>
 
             <!-- Поиск и фильтры -->
@@ -100,12 +105,23 @@
                                     <button class="btn btn-sm btn-outline-info" @onclick:stopPropagation="true" @onclick="() => ViewOrder(order.Id)">
                                         <i class="bi bi-eye"></i> Просмотр
                                     </button>
-                                    <button class="btn btn-sm btn-outline-warning" @onclick:stopPropagation="true" @onclick="() => EditOrder(order.Id)">
-                                        <i class="bi bi-pencil"></i> Изменить
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick:stopPropagation="true" @onclick="() => ConfirmDelete(order.Id, order.Name)">
-                                        <i class="bi bi-trash"></i> Удалить
-                                    </button>
+                                    
+                                    @if (canManageOrders)
+                                    {
+                                        <button class="btn btn-sm btn-outline-warning" @onclick:stopPropagation="true" @onclick="() => EditOrder(order.Id)">
+                                            <i class="bi bi-pencil"></i> Изменить
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick:stopPropagation="true" @onclick="() => ConfirmDelete(order.Id, order.Name)">
+                                            <i class="bi bi-trash"></i> Удалить
+                                        </button>
+                                    }
+                                    
+                                    @if (isExecutor && (order.OrderStatusName == "Опубликован" || order.OrderStatusName == "Published") && order.ExecutorId == null)
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick:stopPropagation="true" @onclick="() => TakeOrder(order.Id, order.Name)">
+                                            <i class="bi bi-check-circle"></i> Взять заказ
+                                        </button>
+                                    }
                                 </div>
                             </div>
                         }
@@ -117,12 +133,14 @@
                         <i class="bi bi-inbox"></i>
                         <h3>Нет заказов</h3>
                         <p class="text-muted">@(string.IsNullOrEmpty(searchTerm) ? "Создайте первый заказ, чтобы начать работу" : "По вашему запросу ничего не найдено")</p>
-                        @if (string.IsNullOrEmpty(searchTerm))
-                        {
-                            <button class="btn btn-primary" @onclick="CreateOrder">
-                                <i class="bi bi-plus-circle"></i> Создать заказ
-                            </button>
-                        }
+                        <AuthorizeView Roles="Admin,Manager,Client">
+                            @if (string.IsNullOrEmpty(searchTerm))
+                            {
+                                <button class="btn btn-primary" @onclick="CreateOrder">
+                                    <i class="bi bi-plus-circle"></i> Создать заказ
+                                </button>
+                            }
+                        </AuthorizeView>
                         else
                         {
                             <button class="btn btn-outline-primary" @onclick="ResetFilters">
@@ -140,6 +158,7 @@
 </AuthorizeView>
 
 <style>
+    /* Styles same as before */
     .orders-container {
         padding: 20px;
         max-width: 1400px;
@@ -297,6 +316,23 @@
     private string errorMessage = string.Empty;
     private string searchTerm = string.Empty;
     private string selectedStatus = string.Empty;
+    
+    private bool canManageOrders = false;
+    private bool isExecutor = false;
+
+    private string GetPageTitle()
+    {
+        if (isExecutor)
+            return "Заказы";
+        return "Управление заказами";
+    }
+
+    private string GetPageDescription()
+    {
+        if (isExecutor)
+            return "Просматривайте доступные заказы и берите их в работу";
+        return $"Всего заказов: {filteredOrders.Count}";
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -308,6 +344,12 @@
             if (!string.IsNullOrEmpty(token))
             {
                 OrderService.SetToken(token);
+                
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                canManageOrders = user.IsInRole("Admin") || user.IsInRole("Manager");
+                isExecutor = user.IsInRole("Executor");
+                
                 await LoadOrders();
             }
             else
@@ -415,6 +457,36 @@
         catch (Exception ex)
         {
             errorMessage = $"Ошибка при удалении заказа: {ex.Message}";
+        }
+    }
+
+    private async Task TakeOrder(Guid orderId, string orderName)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Вы хотите взять заказ '{orderName}' в работу?");
+        if (!confirmed) return;
+
+        try
+        {
+             var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+            }
+
+            var success = await OrderService.TakeOrderAsync(orderId);
+            if (success)
+            {
+                // Reload orders to update status
+                await LoadOrders();
+            }
+            else
+            {
+                errorMessage = "Ошибка при взятии заказа. Возможно, вы не авторизованы как исполнитель или заказ уже занят.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка: {ex.Message}";
         }
     }
 }

@@ -8,6 +8,6 @@ namespace IT_outCRM.Application.Interfaces.Services
         Task<AuthResponseDto> LoginAsync(LoginDto loginDto);
         Task<UserDto?> GetUserByIdAsync(Guid userId);
         Task<IEnumerable<UserDto>> GetAllUsersAsync();
+        Task DeleteUserAsync(Guid userId);
     }
 }
-

@@ -11,7 +11,8 @@ namespace IT_outCRM.Blazor.Services
         Task<OrderModel?> UpdateAsync(OrderModel model);
         Task<bool> DeleteAsync(Guid id);
         Task<List<OrderModel>> GetByCustomerAsync(Guid customerId);
+        Task<List<OrderModel>> GetMyOrdersAsync();
+        Task<bool> TakeOrderAsync(Guid id);
         void SetToken(string token);
     }
 }
-

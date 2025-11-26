@@ -25,8 +25,23 @@
                     </NavLink>
                 </div>
 
+                @* Для исполнителей - Заказы и Мои услуги *@
+                @if (context.User.IsInRole("Executor"))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="orders">
+                            <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Заказы
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="my-services">
+                            <span class="bi bi-briefcase-fill" aria-hidden="true"></span> Мои услуги
+                        </NavLink>
+                    </div>
+                }
+
                 @* Для клиентов - Мои заказы *@
-                @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Manager"))
+                @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Manager") && !context.User.IsInRole("Executor"))
                 {
                     <div class="nav-item px-3">
                         <NavLink class="nav-link" href="my-orders">
@@ -44,12 +59,6 @@
                         </NavLink>
                     </div>
 
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="customers">
-                            <span class="bi bi-people-fill" aria-hidden="true"></span> Клиенты
-                        </NavLink>
-                    </div>
-
                     <hr class="my-2" />
 
                     <div class="nav-item px-3">
@@ -63,14 +72,14 @@
                     </div>
 
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="accounts">
-                            <span class="bi bi-person-badge" aria-hidden="true"></span> Аккаунты
+                        <NavLink class="nav-link" href="contactpersons">
+                            <span class="bi bi-person-rolodex" aria-hidden="true"></span> Контактные лица
                         </NavLink>
                     </div>
 
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="executors">
-                            <span class="bi bi-person-workspace" aria-hidden="true"></span> Исполнители
+                        <NavLink class="nav-link" href="accounts">
+                            <span class="bi bi-person-badge" aria-hidden="true"></span> Аккаунты
                         </NavLink>
                     </div>
 
@@ -155,6 +164,7 @@
     {
         if (user.IsInRole("Admin")) return "Админ";
         if (user.IsInRole("Manager")) return "Менеджер";
+        if (user.IsInRole("Executor")) return "Исполнитель";
         return "Клиент";
     }
 

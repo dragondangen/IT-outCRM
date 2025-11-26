@@ -24,10 +24,13 @@ namespace IT_outCRM.Infrastructure.Mappings
                 .IsRequired();
                 
             builder.Property(x => x.ExecutorId)
-                .IsRequired();
+                .IsRequired(false);
                 
             builder.Property(x => x.OrderStatusId)
                 .IsRequired();
+                
+            builder.Property(x => x.SupportTeamId)
+                .IsRequired(false);
                 
             builder.HasOne(x => x.Customer)
                 .WithMany()

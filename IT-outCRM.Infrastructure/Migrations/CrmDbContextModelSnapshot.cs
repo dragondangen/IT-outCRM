@@ -223,7 +223,7 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<Guid>("ExecutorId")
+                    b.Property<Guid?>("ExecutorId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Name")
@@ -238,7 +238,7 @@ namespace IT_outCRM.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<Guid>("SupportTeamId")
+                    b.Property<Guid?>("SupportTeamId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -420,8 +420,7 @@ namespace IT_outCRM.Infrastructure.Migrations
                     b.HasOne("IT_outCRM.Domain.Entity.Executor", "Executor")
                         .WithMany()
                         .HasForeignKey("ExecutorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("IT_outCRM.Domain.Entity.OrderStatus", "OrderStatus")
                         .WithMany()
@@ -432,8 +431,7 @@ namespace IT_outCRM.Infrastructure.Migrations
                     b.HasOne("IT_outCRM.Domain.Entity.OrderSupportTeam", "SupportTeam")
                         .WithMany()
                         .HasForeignKey("SupportTeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Customer");
 

@@ -28,41 +28,164 @@ namespace IT_outCRM.Application.Services
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
         {
-            // Проверка на существование пользователя
-            // Используем общее сообщение для предотвращения перебора имен пользователей
+            // 1. Basic Validation
             if (await _unitOfWork.Users.UsernameExistsAsync(registerDto.Username))
-                throw new InvalidOperationException("Не удалось завершить регистрацию. Проверьте введенные данные.");
+                throw new InvalidOperationException("Пользователь с таким именем уже существует.");
 
             if (await _unitOfWork.Users.EmailExistsAsync(registerDto.Email))
-                throw new InvalidOperationException("Не удалось завершить регистрацию. Проверьте введенные данные.");
+                throw new InvalidOperationException("Пользователь с таким email уже существует.");
 
-            // Создание пользователя
-            var user = new User
+            try 
             {
-                Id = Guid.NewGuid(),
-                Username = registerDto.Username,
-                Email = registerDto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
-                Role = registerDto.Role,
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            };
+                await _unitOfWork.BeginTransactionAsync();
 
-            await _unitOfWork.Users.AddAsync(user);
-            await _unitOfWork.SaveChangesAsync();
+                // 2. Create User
+                // Определяем роль на основе UserType, если она не указана явно
+                var userRole = registerDto.Role;
+                if (string.IsNullOrEmpty(userRole) || userRole == "User")
+                {
+                    // Если UserType указан, используем его для определения роли
+                    if (registerDto.UserType == "Executor")
+                    {
+                        userRole = "Executor";
+                    }
+                    else if (registerDto.UserType == "Customer")
+                    {
+                        userRole = "User"; // Customer использует роль "User"
+                    }
+                }
+                
+                var user = new User
+                {
+                    Id = Guid.NewGuid(),
+                    Username = registerDto.Username,
+                    Email = registerDto.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
+                    Role = userRole,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
 
-            // Генерация токена
-            var token = _jwtService.GenerateToken(user);
-            var expirationHours = Convert.ToDouble(_configuration["Jwt:ExpirationHours"] ?? "24");
+                await _unitOfWork.Users.AddAsync(user);
 
-            return new AuthResponseDto
+                // 3. If Company info provided, create related entities
+                if (!string.IsNullOrEmpty(registerDto.CompanyName))
+                {
+                    // 3.1 Create ContactPerson linked to this User (conceptually)
+                    var contactPerson = new ContactPerson
+                    {
+                        Id = Guid.NewGuid(),
+                        FirstName = registerDto.Username,
+                        LastName = registerDto.Username,
+                        MiddleName = "-",
+                        Email = registerDto.Email,
+                        PhoneNumber = registerDto.Phone ?? "",
+                        Role = "Director"
+                    };
+                    await _unitOfWork.ContactPersons.AddAsync(contactPerson);
+
+                    // 3.2 Create Company
+                    var company = new Company
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = registerDto.CompanyName,
+                        Inn = registerDto.Inn,
+                        LegalForm = registerDto.LegalForm,
+                        ContactPersonID = contactPerson.Id
+                    };
+                    await _unitOfWork.Companies.AddAsync(company);
+
+                    // 3.3 Create Account (Tenant)
+                    var statuses = await _unitOfWork.AccountStatuses.GetAllAsync();
+                    var defaultStatus = statuses.FirstOrDefault()?.Id ?? Guid.Empty;
+                    
+                    if (defaultStatus == Guid.Empty)
+                    {
+                         var newStatus = new AccountStatus { Id = Guid.NewGuid(), Name = "New" };
+                         await _unitOfWork.AccountStatuses.AddAsync(newStatus);
+                         defaultStatus = newStatus.Id;
+                    }
+
+                    var account = new Account
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyName = registerDto.CompanyName,
+                        FoundingDate = DateTime.UtcNow,
+                        AccountStatusId = defaultStatus
+                    };
+                    await _unitOfWork.Accounts.AddAsync(account);
+
+                    // 3.4 Create Customer or Executor based on UserType
+                    // ВАЖНО: Создаем ТОЛЬКО одну сущность - либо Customer, либо Executor, но не обе
+                    if (string.IsNullOrWhiteSpace(registerDto.UserType))
+                    {
+                        throw new ArgumentException("UserType должен быть указан: 'Customer' или 'Executor'");
+                    }
+                    
+                    if (registerDto.UserType == "Customer")
+                    {
+                        var customer = new Customer
+                        {
+                            Id = Guid.NewGuid(),
+                            AccountId = account.Id,
+                            CompanyId = company.Id
+                        };
+                        await _unitOfWork.Customers.AddAsync(customer);
+                    }
+                    else if (registerDto.UserType == "Executor")
+                    {
+                        // Проверяем, что Customer не существует для этого Account
+                        var existingCustomers = await _unitOfWork.Customers.GetCustomersByCompanyAsync(company.Id);
+                        var customerWithSameAccount = existingCustomers.FirstOrDefault(c => c.AccountId == account.Id);
+                        if (customerWithSameAccount != null)
+                        {
+                            throw new InvalidOperationException($"Для аккаунта {account.Id} уже существует Customer (ID: {customerWithSameAccount.Id}). Нельзя создать Executor для аккаунта с Customer. Сначала удалите Customer или используйте другой аккаунт.");
+                        }
+                        
+                        // Также проверяем, что Executor еще не существует для этого Account
+                        var existingExecutors = await _unitOfWork.Executors.GetAllAsync();
+                        var executorWithSameAccount = existingExecutors.FirstOrDefault(e => e.AccountId == account.Id && e.CompanyId == company.Id);
+                        if (executorWithSameAccount != null)
+                        {
+                            throw new InvalidOperationException($"Для аккаунта {account.Id} уже существует Executor (ID: {executorWithSameAccount.Id}).");
+                        }
+                        
+                        var executor = new Executor
+                        {
+                            Id = Guid.NewGuid(),
+                            AccountId = account.Id,
+                            CompanyId = company.Id,
+                            CompletedOrders = 0
+                        };
+                        await _unitOfWork.Executors.AddAsync(executor);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Неверный UserType: '{registerDto.UserType}'. Должен быть 'Customer' или 'Executor'");
+                    }
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                // 4. Generate Token
+                var token = _jwtService.GenerateToken(user);
+                var expirationHours = Convert.ToDouble(_configuration["Jwt:ExpirationHours"] ?? "24");
+
+                return new AuthResponseDto
+                {
+                    Token = token,
+                    Username = user.Username,
+                    Email = user.Email,
+                    Role = user.Role,
+                    ExpiresAt = DateTime.UtcNow.AddHours(expirationHours)
+                };
+            }
+            catch
             {
-                Token = token,
-                Username = user.Username,
-                Email = user.Email,
-                Role = user.Role,
-                ExpiresAt = DateTime.UtcNow.AddHours(expirationHours)
-            };
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
@@ -107,8 +230,19 @@ namespace IT_outCRM.Application.Services
         public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
         {
             var users = await _unitOfWork.Users.GetAllAsync();
+            // Возвращаем всех, так как мы теперь удаляем физически
             return _mapper.Map<IEnumerable<UserDto>>(users);
+        }
+
+        public async Task DeleteUserAsync(Guid userId)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null)
+                throw new KeyNotFoundException($"User with ID {userId} not found");
+
+            // ВАРИАНТ 1: Полное физическое удаление
+            await _unitOfWork.Users.DeleteAsync(user);
+            await _unitOfWork.SaveChangesAsync();
         }
     }
 }
-

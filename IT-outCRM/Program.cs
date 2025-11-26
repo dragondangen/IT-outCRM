@@ -144,10 +144,11 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Version = "v1.3.2",
+        Version = "v1.4.0",
         Title = "IT-outCRM API",
         Description = "REST API для управления CRM системой IT-аутсорсинговой компании. " +
-                      "Поддерживает управление клиентами, заказами, исполнителями, компаниями, контактными лицами и статусами аккаунтов.",
+                      "Поддерживает управление клиентами, заказами, исполнителями, компаниями, контактными лицами, статусами аккаунтов и заказов. " +
+                      "Включает функционал для работы с услугами исполнителей и персонализированные эндпоинты для разных ролей пользователей.",
         Contact = new OpenApiContact
         {
             Name = "IT-outCRM Support",
@@ -188,12 +189,20 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 
-    // Включение XML комментариев
+    // Включение XML комментариев для основного проекта
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
     if (File.Exists(xmlPath))
     {
         options.IncludeXmlComments(xmlPath);
+    }
+    
+    // Включение XML комментариев для Application проекта (DTO, сервисы)
+    var applicationXmlFilename = "IT-outCRM.Application.xml";
+    var applicationXmlPath = Path.Combine(AppContext.BaseDirectory, applicationXmlFilename);
+    if (File.Exists(applicationXmlPath))
+    {
+        options.IncludeXmlComments(applicationXmlPath);
     }
 });
 
@@ -217,7 +226,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "IT-outCRM API v1.3.0");
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "IT-outCRM API v1.4.0");
         options.RoutePrefix = "swagger";
         options.DocumentTitle = "IT-outCRM API Documentation";
         options.DefaultModelsExpandDepth(2);

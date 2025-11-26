@@ -28,7 +28,7 @@ namespace IT_outCRM.Domain.Entity
         [JsonIgnore]
         public Executor? Executor { get; set; }
 
-        public Guid ExecutorId { get; set; }
+        public Guid? ExecutorId { get; set; }
 
         /// <summary>
         /// Навигационное свойство к статусу заказа
@@ -40,10 +40,11 @@ namespace IT_outCRM.Domain.Entity
 
         /// <summary>
         /// Навигационное свойство к команде поддержки
+        /// Может быть null, если команда поддержки еще не назначена
         /// </summary>
         [JsonIgnore]
         public OrderSupportTeam? SupportTeam { get; set; }
 
-        public Guid SupportTeamId { get; set; }
+        public Guid? SupportTeamId { get; set; }
     }
 }

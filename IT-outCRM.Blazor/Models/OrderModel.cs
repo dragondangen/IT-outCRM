@@ -15,19 +15,16 @@ namespace IT_outCRM.Blazor.Models
         [Range(0.01, double.MaxValue, ErrorMessage = "Цена должна быть больше 0")]
         public decimal Price { get; set; }
 
-        [Required(ErrorMessage = "Клиент обязателен")]
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Исполнитель обязателен")]
-        public Guid ExecutorId { get; set; }
+        public Guid? ExecutorId { get; set; }
         public string ExecutorName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Статус обязателен")]
         public Guid OrderStatusId { get; set; }
         public string OrderStatusName { get; set; } = string.Empty;
 
-        public Guid SupportTeamId { get; set; }
+        public Guid? SupportTeamId { get; set; }
     }
 
     public class CreateOrderModel
@@ -41,16 +38,14 @@ namespace IT_outCRM.Blazor.Models
         [Range(0.01, double.MaxValue, ErrorMessage = "Цена должна быть больше 0")]
         public decimal Price { get; set; }
 
-        [Required(ErrorMessage = "Клиент обязателен")]
-        public Guid CustomerId { get; set; }
+        // Made nullable to allow frontend logic to handle defaults/roles
+        public Guid? CustomerId { get; set; }
 
-        [Required(ErrorMessage = "Исполнитель обязателен")]
-        public Guid ExecutorId { get; set; }
+        public Guid? ExecutorId { get; set; }
 
-        [Required(ErrorMessage = "Статус обязателен")]
-        public Guid OrderStatusId { get; set; }
+        public Guid? OrderStatusId { get; set; }
 
-        public Guid SupportTeamId { get; set; }
+        // SupportTeamId необязателен - команда поддержки может быть назначена позже
+        public Guid? SupportTeamId { get; set; }
     }
 }
-

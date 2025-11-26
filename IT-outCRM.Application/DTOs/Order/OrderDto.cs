@@ -8,11 +8,11 @@ namespace IT_outCRM.Application.DTOs.Order
         public decimal Price { get; set; }
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
-        public Guid ExecutorId { get; set; }
+        public Guid? ExecutorId { get; set; }
         public string ExecutorName { get; set; } = string.Empty;
         public Guid OrderStatusId { get; set; }
         public string OrderStatusName { get; set; } = string.Empty;
-        public Guid SupportTeamId { get; set; }
+        public Guid? SupportTeamId { get; set; }
     }
 }
 

@@ -2,6 +2,8 @@
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @attribute [Authorize]
 @inject IOrderService OrderService
 @inject ICustomerService CustomerService
@@ -9,6 +11,7 @@
 @inject IOrderStatusService OrderStatusService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveServer
 
 <PageTitle>Создание заказа - IT-outCRM</PageTitle>
@@ -37,7 +40,7 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Загрузка...</span>
             </div>
-            <p class="mt-3">Загрузка справочников...</p>
+            <p class="mt-3">Загрузка данных...</p>
         </div>
     }
     else
@@ -71,77 +74,86 @@
                     </div>
                 </div>
 
-                <div class="form-section">
-                    <h5><i class="bi bi-people"></i> Участники</h5>
-                    
-                    <div class="mb-3">
-                        <label for="customer" class="form-label">Клиент <span class="text-danger">*</span></label>
-                        @if (customers.Any())
-                        {
-                            <InputSelect id="customer" class="form-select" @bind-Value="CreateModel!.CustomerId">
-                                <option value="@Guid.Empty">-- Выберите клиента --</option>
-                                @foreach (var customer in customers)
-                                {
-                                    <option value="@customer.Id">@customer.AccountName (@customer.CompanyName)</option>
-                                }
-                            </InputSelect>
-                            <ValidationMessage For="@(() => CreateModel!.CustomerId)" class="text-danger" />
-                        }
-                        else
-                        {
-                            <div class="alert alert-warning mb-0">
-                                <strong>Клиенты не найдены.</strong> 
-                                <a href="/customers/create" class="alert-link">Создайте клиента</a> для продолжения.
-                            </div>
-                        }
+                @if (isAdminOrManager)
+                {
+                    <div class="form-section">
+                        <h5><i class="bi bi-people"></i> Участники</h5>
+                        
+                        <div class="mb-3">
+                            <label for="customer" class="form-label">Клиент <span class="text-danger">*</span></label>
+                            @if (customers.Any())
+                            {
+                                <InputSelect id="customer" class="form-select" @bind-Value="CreateModel!.CustomerId">
+                                    <option value="">-- Выберите клиента --</option>
+                                    @foreach (var customer in customers)
+                                    {
+                                        <option value="@customer.Id">@customer.AccountName (@customer.CompanyName)</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => CreateModel!.CustomerId)" class="text-danger" />
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning mb-0">
+                                    <strong>Клиенты не найдены.</strong> 
+                                    <a href="/customers/create" class="alert-link">Создайте клиента</a> для продолжения.
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="executor" class="form-label">Исполнитель</label>
+                            @if (executors.Any())
+                            {
+                                <InputSelect id="executor" class="form-select" @bind-Value="CreateModel!.ExecutorId">
+                                    <option value="">-- Выберите исполнителя (необязательно) --</option>
+                                    @foreach (var executor in executors)
+                                    {
+                                        <option value="@executor.Id">@executor.AccountName (@executor.Specialization)</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => CreateModel!.ExecutorId)" class="text-danger" />
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning mb-0">
+                                    <strong>Исполнители не найдены.</strong>
+                                </div>
+                            }
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="executor" class="form-label">Исполнитель <span class="text-danger">*</span></label>
-                        @if (executors.Any())
-                        {
-                            <InputSelect id="executor" class="form-select" @bind-Value="CreateModel!.ExecutorId">
-                                <option value="@Guid.Empty">-- Выберите исполнителя --</option>
-                                @foreach (var executor in executors)
-                                {
-                                    <option value="@executor.Id">@executor.AccountName (@executor.Specialization)</option>
-                                }
-                            </InputSelect>
-                            <ValidationMessage For="@(() => CreateModel!.ExecutorId)" class="text-danger" />
-                        }
-                        else
-                        {
-                            <div class="alert alert-warning mb-0">
-                                <strong>Исполнители не найдены.</strong> Свяжитесь с администратором.
-                            </div>
-                        }
+                    <div class="form-section">
+                        <h5><i class="bi bi-card-checklist"></i> Статус</h5>
+                        
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Статус заказа <span class="text-danger">*</span></label>
+                            @if (orderStatuses.Any())
+                            {
+                                <InputSelect id="status" class="form-select" @bind-Value="CreateModel!.OrderStatusId">
+                                    <option value="">-- Выберите статус --</option>
+                                    @foreach (var status in orderStatuses)
+                                    {
+                                        <option value="@status.Id">@status.Name</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => CreateModel!.OrderStatusId)" class="text-danger" />
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning mb-0">
+                                    <strong>Статусы не найдены.</strong>
+                                </div>
+                            }
+                        </div>
                     </div>
-                </div>
-
-                <div class="form-section">
-                    <h5><i class="bi bi-card-checklist"></i> Статус</h5>
-                    
-                    <div class="mb-3">
-                        <label for="status" class="form-label">Статус заказа <span class="text-danger">*</span></label>
-                        @if (orderStatuses.Any())
-                        {
-                            <InputSelect id="status" class="form-select" @bind-Value="CreateModel!.OrderStatusId">
-                                <option value="@Guid.Empty">-- Выберите статус --</option>
-                                @foreach (var status in orderStatuses)
-                                {
-                                    <option value="@status.Id">@status.Name</option>
-                                }
-                            </InputSelect>
-                            <ValidationMessage For="@(() => CreateModel!.OrderStatusId)" class="text-danger" />
-                        }
-                        else
-                        {
-                            <div class="alert alert-warning mb-0">
-                                <strong>Статусы не найдены.</strong> Свяжитесь с администратором.
-                            </div>
-                        }
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill"></i> Ваш заказ будет опубликован автоматически. Исполнитель будет назначен после публикации.
                     </div>
-                </div>
+                }
 
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/orders")'>
@@ -272,6 +284,7 @@
     private string errorMessage = string.Empty;
     private bool isSubmitting = false;
     private bool isLoadingData = true;
+    private bool isAdminOrManager = false;
 
     protected override void OnInitialized()
     {
@@ -291,13 +304,26 @@
                 CustomerService.SetToken(token);
                 ExecutorService.SetToken(token);
                 OrderStatusService.SetToken(token);
-                OrderService.SetToken(token); // For create later
+                OrderService.SetToken(token);
                 
-                await LoadReferenceData();
+                // Check role
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                isAdminOrManager = user.IsInRole("Admin") || user.IsInRole("Manager");
+
+                if (isAdminOrManager)
+                {
+                    await LoadReferenceData();
+                }
+                else
+                {
+                    isLoadingData = false;
+                }
             }
             else
             {
                 errorMessage = "Не удалось получить токен авторизации.";
+                isLoadingData = false;
             }
             
             StateHasChanged();
@@ -332,7 +358,8 @@
 
     private bool CanSubmit()
     {
-        return customers.Any() && executors.Any() && orderStatuses.Any();
+        if (!isAdminOrManager) return true;
+        return customers.Any() && orderStatuses.Any();
     }
 
     private async Task HandleSubmit()
@@ -351,21 +378,19 @@
                 OrderService.SetToken(token);
             }
 
-            // Валидация
-            if (CreateModel.CustomerId == Guid.Empty)
+            // Валидация для админов
+            if (isAdminOrManager)
             {
-                errorMessage = "Выберите клиента";
-                return;
-            }
-            if (CreateModel.ExecutorId == Guid.Empty)
-            {
-                errorMessage = "Выберите исполнителя";
-                return;
-            }
-            if (CreateModel.OrderStatusId == Guid.Empty)
-            {
-                errorMessage = "Выберите статус заказа";
-                return;
+                if (CreateModel.CustomerId == null || CreateModel.CustomerId == Guid.Empty)
+                {
+                    errorMessage = "Выберите клиента";
+                    return;
+                }
+                if (CreateModel.OrderStatusId == null || CreateModel.OrderStatusId == Guid.Empty)
+                {
+                    errorMessage = "Выберите статус заказа";
+                    return;
+                }
             }
 
             var result = await OrderService.CreateAsync(CreateModel);
@@ -378,6 +403,11 @@
             {
                 errorMessage = "Ошибка при создании заказа. Проверьте правильность данных.";
             }
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Исключения с сообщениями об ошибках от сервера
+            errorMessage = ex.Message;
         }
         catch (Exception ex)
         {

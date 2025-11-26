@@ -17,17 +17,10 @@ namespace IT_outCRM.Application.Validators.Order
             RuleFor(x => x.Price)
                 .GreaterThan(0).WithMessage("Цена должна быть больше 0");
 
-            RuleFor(x => x.CustomerId)
-                .NotEmpty().WithMessage("ID клиента обязателен");
-
-            RuleFor(x => x.ExecutorId)
-                .NotEmpty().WithMessage("ID исполнителя обязателен");
-
-            RuleFor(x => x.OrderStatusId)
-                .NotEmpty().WithMessage("ID статуса заказа обязателен");
-
-            RuleFor(x => x.SupportTeamId)
-                .NotEmpty().WithMessage("ID команды поддержки обязателен");
+            // CustomerId, OrderStatusId, and SupportTeamId могут быть пустыми, 
+            // если они будут автоматически заполнены контроллером для клиентов.
+            // Контроллер проверит и заполнит эти поля перед созданием заказа.
+            // ExecutorId необязателен (может быть null для опубликованных заказов)
         }
     }
 }

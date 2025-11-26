@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject IOrderService OrderService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -235,9 +236,26 @@
     private OrderModel? order;
     private bool isLoading = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadOrder();
+        if (firstRender)
+        {
+            // Wait for JS init
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+                await LoadOrder();
+            }
+            else
+            {
+                Console.WriteLine("[OrderDetails] Token not found, cannot load order");
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
     }
 
     private async Task LoadOrder()
@@ -245,11 +263,21 @@
         isLoading = true;
         try
         {
+            Console.WriteLine($"[OrderDetails] Loading order with ID: {Id}");
             order = await OrderService.GetByIdAsync(Id);
+            if (order == null)
+            {
+                Console.WriteLine($"[OrderDetails] Order {Id} not found or returned null");
+            }
+            else
+            {
+                Console.WriteLine($"[OrderDetails] Order loaded: {order.Name}, ID: {order.Id}");
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Ошибка загрузки заказа: {ex.Message}");
+            Console.WriteLine($"[OrderDetails] Ошибка загрузки заказа: {ex.Message}");
+            Console.WriteLine($"[OrderDetails] Stack trace: {ex.StackTrace}");
         }
         finally
         {

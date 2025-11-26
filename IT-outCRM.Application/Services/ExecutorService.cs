@@ -57,6 +57,23 @@ namespace IT_outCRM.Application.Services
         {
             await _validationService.EnsureAccountExistsAsync(createDto.AccountId);
             await _validationService.EnsureCompanyExistsAsync(createDto.CompanyId);
+            
+            // Проверяем, что для этого Account не существует Customer
+            // Один Account не может быть одновременно Customer и Executor
+            var customers = await _unitOfWork.Customers.GetCustomersByCompanyAsync(createDto.CompanyId);
+            var customerWithSameAccount = customers.FirstOrDefault(c => c.AccountId == createDto.AccountId);
+            if (customerWithSameAccount != null)
+            {
+                throw new InvalidOperationException($"Для аккаунта {createDto.AccountId} уже существует Customer (ID: {customerWithSameAccount.Id}). Нельзя создать Executor для аккаунта с Customer. Сначала удалите Customer или используйте другой аккаунт.");
+            }
+            
+            // Проверяем, что Executor еще не существует для этого Account и Company
+            var existingExecutors = await _unitOfWork.Executors.GetAllAsync();
+            var executorWithSameAccount = existingExecutors.FirstOrDefault(e => e.AccountId == createDto.AccountId && e.CompanyId == createDto.CompanyId);
+            if (executorWithSameAccount != null)
+            {
+                throw new InvalidOperationException($"Для аккаунта {createDto.AccountId} и компании {createDto.CompanyId} уже существует Executor (ID: {executorWithSameAccount.Id}).");
+            }
         }
 
         /// <summary>

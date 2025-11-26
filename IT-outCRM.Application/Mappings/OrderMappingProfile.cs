@@ -20,7 +20,13 @@ namespace IT_outCRM.Application.Mappings
                 .ForMember(dest => dest.OrderStatusName,
                     opt => opt.MapFrom(src => src.OrderStatus != null ? src.OrderStatus.Name : string.Empty));
 
-            CreateMap<CreateOrderDto, Order>();
+            CreateMap<CreateOrderDto, Order>()
+                .ForMember(dest => dest.CustomerId, 
+                    opt => opt.MapFrom(src => src.CustomerId.HasValue ? src.CustomerId.Value : Guid.Empty))
+                .ForMember(dest => dest.OrderStatusId, 
+                    opt => opt.MapFrom(src => src.OrderStatusId.HasValue ? src.OrderStatusId.Value : Guid.Empty))
+                .ForMember(dest => dest.SupportTeamId, 
+                    opt => opt.MapFrom(src => src.SupportTeamId));
             
             CreateMap<UpdateOrderDto, Order>();
         }

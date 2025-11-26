@@ -20,7 +20,13 @@ namespace IT_outCRM.Controllers
         /// <summary>
         /// Получить всех исполнителей
         /// </summary>
+        /// <returns>Список всех исполнителей в системе</returns>
+        /// <remarks>
+        /// Возвращает полный список всех исполнителей со связанными данными (аккаунт, компания).
+        /// </remarks>
+        /// <response code="200">Список исполнителей успешно получен</response>
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<ExecutorDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<ExecutorDto>>> GetAll()
         {
             var executors = await _executorService.GetAllAsync();
@@ -94,7 +100,14 @@ namespace IT_outCRM.Controllers
         /// <summary>
         /// Получить топ исполнителей по количеству выполненных заказов
         /// </summary>
+        /// <param name="count">Количество исполнителей для возврата (по умолчанию 10)</param>
+        /// <returns>Список топ исполнителей, отсортированных по количеству выполненных заказов</returns>
+        /// <remarks>
+        /// Возвращает список исполнителей, отсортированных по убыванию количества выполненных заказов.
+        /// </remarks>
+        /// <response code="200">Список топ исполнителей успешно получен</response>
         [HttpGet("top/{count}")]
+        [ProducesResponseType(typeof(IEnumerable<ExecutorDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<ExecutorDto>>> GetTopExecutors(int count = 10)
         {
             var executors = await _executorService.GetTopExecutorsAsync(count);

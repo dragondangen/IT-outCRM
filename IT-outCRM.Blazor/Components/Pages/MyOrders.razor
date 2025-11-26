@@ -7,6 +7,7 @@
 @inject IOrderService OrderService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ITokenStorage TokenStorage
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
@@ -342,8 +343,27 @@
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         currentUserName = authState.User.Identity?.Name;
-        
-        await LoadMyOrders();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+                await LoadMyOrders();
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
     }
 
     private async Task LoadMyOrders()
@@ -353,21 +373,8 @@
 
         try
         {
-            var allOrders = await OrderService.GetAllAsync();
-            
-            // Для клиентов фильтруем только их заказы
-            // Для админов и менеджеров показываем все
-            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            if (!authState.User.IsInRole("Admin") && !authState.User.IsInRole("Manager"))
-            {
-                // TODO: Фильтровать по CustomerName == currentUserName
-                // Пока показываем все, т.к. нет связи User -> Customer
-                myOrders = allOrders;
-            }
-            else
-            {
-                myOrders = allOrders;
-            }
+            // Используем новый эндпоинт, который автоматически определяет заказы текущего пользователя
+            myOrders = await OrderService.GetMyOrdersAsync();
             
             uniqueStatuses = myOrders
                 .Select(o => o.OrderStatusName)
@@ -377,9 +384,15 @@
             
             FilterOrders();
         }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"[MyOrders] Error loading orders: {ex.Message}");
+        }
         catch (Exception ex)
         {
             errorMessage = $"Ошибка загрузки заказов: {ex.Message}";
+            Console.WriteLine($"[MyOrders] Error loading orders: {ex}");
         }
         finally
         {

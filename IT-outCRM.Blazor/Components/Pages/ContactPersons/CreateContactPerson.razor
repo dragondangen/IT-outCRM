@@ -1,0 +1,199 @@
+@page "/contactpersons/create"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@inject IContactPersonService ContactPersonService
+@inject ITokenStorage TokenStorage
+@inject NavigationManager Navigation
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Создание контакта - IT-outCRM</PageTitle>
+
+<AuthorizeView Roles="Admin,Manager">
+    <Authorized Context="authContext">
+        <div class="create-container">
+            <div class="page-header">
+                <div>
+                    <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo("/contactpersons")'>
+                        <i class="bi bi-arrow-left"></i> Назад к списку
+                    </button>
+                    <h2><i class="bi bi-person-plus"></i> Создание нового контакта</h2>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    <strong>Ошибка создания!</strong> @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            <div class="form-card">
+                <EditForm Model="contactPerson" OnValidSubmit="HandleSubmit" FormName="createContactForm">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="lastName" class="form-label">Фамилия <span class="text-danger">*</span></label>
+                            <InputText id="lastName" class="form-control" @bind-Value="contactPerson!.LastName" placeholder="Иванов" />
+                            <ValidationMessage For="@(() => contactPerson!.LastName)" class="text-danger" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="firstName" class="form-label">Имя <span class="text-danger">*</span></label>
+                            <InputText id="firstName" class="form-control" @bind-Value="contactPerson!.FirstName" placeholder="Иван" />
+                            <ValidationMessage For="@(() => contactPerson!.FirstName)" class="text-danger" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="middleName" class="form-label">Отчество</label>
+                            <InputText id="middleName" class="form-control" @bind-Value="contactPerson!.MiddleName" placeholder="Иванович" />
+                            <ValidationMessage For="@(() => contactPerson!.MiddleName)" class="text-danger" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                        <InputText id="email" class="form-control" @bind-Value="contactPerson!.Email" placeholder="ivanov@example.com" />
+                        <ValidationMessage For="@(() => contactPerson!.Email)" class="text-danger" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Телефон <span class="text-danger">*</span></label>
+                        <InputText id="phone" class="form-control" @bind-Value="contactPerson!.PhoneNumber" placeholder="+7 (999) 123-45-67" />
+                        <ValidationMessage For="@(() => contactPerson!.PhoneNumber)" class="text-danger" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Должность <span class="text-danger">*</span></label>
+                        <InputText id="role" class="form-control" @bind-Value="contactPerson!.Role" placeholder="Менеджер" />
+                        <ValidationMessage For="@(() => contactPerson!.Role)" class="text-danger" />
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/contactpersons")'>
+                            <i class="bi bi-x-circle"></i> Отмена
+                        </button>
+                        <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            <i class="bi bi-check-circle"></i> Создать контакт
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .create-container {
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #555;
+    }
+
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 10px 15px;
+    }
+
+    .form-control:focus {
+        border-color: #11998e;
+        box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.25);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #e9ecef;
+    }
+</style>
+
+@code {
+    [SupplyParameterFromForm]
+    private ContactPersonModel? contactPerson { get; set; }
+    
+    private string errorMessage = string.Empty;
+    private bool isSubmitting = false;
+
+    protected override void OnInitialized()
+    {
+        contactPerson ??= new ContactPersonModel();
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (contactPerson == null) return;
+        
+        isSubmitting = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            if (string.IsNullOrEmpty(token))
+            {
+                await Task.Delay(100);
+                token = await TokenStorage.GetTokenAsync();
+                
+                if (string.IsNullOrEmpty(token))
+                {
+                    errorMessage = "Ошибка авторизации: токен не найден.";
+                    isSubmitting = false;
+                    return;
+                }
+            }
+            
+            ContactPersonService.SetToken(token);
+
+            contactPerson.Id = Guid.Empty;
+            var result = await ContactPersonService.CreateAsync(contactPerson);
+            
+            if (result != null)
+            {
+                Navigation.NavigateTo("/contactpersons");
+            }
+            else
+            {
+                errorMessage = "Неизвестная ошибка при создании контакта.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
+
