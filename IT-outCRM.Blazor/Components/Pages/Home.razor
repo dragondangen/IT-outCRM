@@ -1,54 +1,270 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Authorization
+@using IT_outCRM.Blazor.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Navigation
-@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>IT-outCRM</PageTitle>
+<PageTitle>IT-outCRM - О системе</PageTitle>
 
-<AuthorizeView>
-    <Authorized>
-        <div class="text-center mt-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Перенаправление...</span>
-            </div>
-            <p class="mt-3">Перенаправление на панель управления...</p>
-        </div>
-    </Authorized>
-    <NotAuthorized>
-        <div class="container-fluid vh-100 d-flex align-items-center justify-content-center bg-light">
-            <div class="text-center">
-                <h1 class="display-3 mb-4">🚀 IT-outCRM</h1>
-                <p class="lead mb-4">Современная система управления взаимоотношениями с клиентами</p>
-                <div class="d-flex gap-3 justify-content-center">
-                    <a href="/login" class="btn btn-primary btn-lg px-5">Войти</a>
-                    <a href="/register" class="btn btn-outline-primary btn-lg px-5">Регистрация</a>
+<div class="landing-page">
+    @* Hero Section *@
+    <section class="hero-section text-center">
+        <div class="container position-relative z-2">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <h1 class="display-3 fw-bold mb-4 text-white tracking-wide" style="outline: none; user-select: none;">IT-outCRM</h1>
+                    <p class="lead mb-4 text-white-50 mx-auto" style="max-width: 800px;">
+                        Современная CRM система для управления клиентами, заказами и исполнителями в IT-аутсорсинговой компании.
+                    </p>
+                    <p class="text-white-50 mb-5">
+                        Построена на основе Clean Architecture с использованием последних версий .NET 10 и PostgreSQL 17.
+                    </p>
+                    
+                    <div class="d-flex gap-3 justify-content-center">
+                        <AuthorizeView>
+                            <Authorized>
+                                <a href="dashboard" class="btn btn-accent btn-lg px-5 shadow-lg">
+                                    Перейти в Dashboard
+                                </a>
+                            </Authorized>
+                            <NotAuthorized>
+                                <a href="login" class="btn btn-accent btn-lg px-5 shadow-lg">
+                                    Вход в систему
+                                </a>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
                 </div>
             </div>
         </div>
-    </NotAuthorized>
-</AuthorizeView>
+        <div class="hero-overlay"></div>
+    </section>
+
+    @* Project Info *@
+    <section class="features-section py-6">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold display-6 text-primary-dark">Ключевые особенности</h2>
+                <div class="divider mx-auto mt-3"></div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="feature-card h-100 p-4">
+                        <h4 class="mb-3 text-primary-dark">Архитектура</h4>
+                        <p class="text-muted">
+                            Clean Architecture с четким разделением слоев. 
+                            Presentation, Application, Infrastructure, Domain.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card h-100 p-4">
+                        <h4 class="mb-3 text-primary-dark">Принципы</h4>
+                        <p class="text-muted">
+                            Строгое соблюдение принципов SOLID и DRY. 
+                            Базовые классы для устранения дублирования кода.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card h-100 p-4">
+                        <h4 class="mb-3 text-primary-dark">Безопасность</h4>
+                        <p class="text-muted">
+                            JWT Authentication с ролевой моделью доступа (Admin, Manager, User).
+                            Хеширование паролей BCrypt.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card h-100 p-4">
+                        <h4 class="mb-3 text-primary-dark">API</h4>
+                        <p class="text-muted">
+                            RESTful API с 57+ эндпоинтами. 
+                            Документация через Swagger UI и OpenAPI 3.0.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card h-100 p-4">
+                        <h4 class="mb-3 text-primary-dark">Данные</h4>
+                        <p class="text-muted">
+                            Entity Framework Core 9.0. PostgreSQL 17.
+                            Эффективная пагинация на уровне базы данных.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card h-100 p-4">
+                        <h4 class="mb-3 text-primary-dark">Валидация</h4>
+                        <p class="text-muted">
+                            FluentValidation для всех входных данных.
+                            Глобальная обработка ошибок и стандартизированные ответы.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* Tech Stack *@
+    <section class="stats-section py-5 bg-white border-top">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h3 class="fw-bold text-primary-dark">Стек технологий</h3>
+            </div>
+            <div class="row text-center">
+                <div class="col-md-3 col-6 mb-4">
+                    <h5 class="fw-bold text-primary-dark">Backend</h5>
+                    <p class="text-muted">.NET 10.0 Preview</p>
+                    <p class="text-muted">ASP.NET Core</p>
+                    <p class="text-muted">C# 13</p>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h5 class="fw-bold text-primary-dark">База данных</h5>
+                    <p class="text-muted">PostgreSQL 17</p>
+                    <p class="text-muted">EF Core 9.0</p>
+                    <p class="text-muted">Npgsql</p>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h5 class="fw-bold text-primary-dark">Tools</h5>
+                    <p class="text-muted">Docker & Compose</p>
+                    <p class="text-muted">AutoMapper</p>
+                    <p class="text-muted">FluentValidation</p>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h5 class="fw-bold text-primary-dark">API Doc</h5>
+                    <p class="text-muted">Swagger UI</p>
+                    <p class="text-muted">OpenAPI 3.0</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* Functionality *@
+    <section class="cta-section py-6 bg-primary-dark text-white">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h3 class="fw-bold text-white">Функциональность системы</h3>
+                <div class="divider mx-auto mt-3 bg-accent"></div>
+            </div>
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="row text-start">
+                        <div class="col-md-6 mb-4">
+                            <h5 class="text-accent mb-3">Сущности</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2">Аккаунты и Статусы</li>
+                                <li class="mb-2">Заказы (CRUD, Пагинация, Фильтры)</li>
+                                <li class="mb-2">Клиенты и Компании</li>
+                                <li class="mb-2">Исполнители и Контакты</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <h5 class="text-accent mb-3">Возможности</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2">Аутентификация и Регистрация</li>
+                                <li class="mb-2">Фильтрация по статусам и связям</li>
+                                <li class="mb-2">Поиск по атрибутам</li>
+                                <li class="mb-2">Ролевая модель доступа</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* Footer *@
+    <footer class="footer py-4 bg-white border-top">
+        <div class="container text-center">
+            <p class="text-muted mb-0 small">
+                IT-outCRM v1.3.1 &copy; @DateTime.Now.Year
+            </p>
+        </div>
+    </footer>
+</div>
 
 <style>
-    .vh-100 {
-        min-height: 100vh;
+    :root {
+        --primary-dark: #1a252f;
+        --accent: #d4af37;
+    }
+
+    .bg-primary-dark {
+        background-color: var(--primary-dark) !important;
+    }
+
+    .text-primary-dark {
+        color: var(--primary-dark) !important;
+    }
+
+    .text-accent {
+        color: var(--accent) !important;
+    }
+    
+    .bg-accent {
+        background-color: var(--accent) !important;
+    }
+
+    .btn-accent {
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        padding: 0.8rem 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-accent:hover {
+        background-color: #b3922b;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
+        color: white;
+    }
+
+    .hero-section {
+        background: linear-gradient(135deg, rgba(26, 37, 47, 0.95) 0%, rgba(44, 62, 80, 0.9) 100%), 
+                    url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        padding: 160px 0 140px;
+        margin-top: -3.5rem;
+        position: relative;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 4px;
+        border: 1px solid rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        border-left: 3px solid transparent;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+        border-left: 3px solid var(--accent);
+    }
+
+    .divider {
+        height: 3px;
+        width: 60px;
+        background-color: var(--accent);
+    }
+
+    .py-6 {
+        padding-top: 5rem;
+        padding-bottom: 5rem;
     }
 </style>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
-
     protected override async Task OnInitializedAsync()
     {
-        if (AuthenticationStateTask != null)
-        {
-            var authState = await AuthenticationStateTask;
-            if (authState?.User?.Identity?.IsAuthenticated == true)
-            {
-                // Авторизованные пользователи автоматически перенаправляются на Dashboard
-                Navigation.NavigateTo("/dashboard", forceLoad: false);
-            }
-        }
     }
 }

@@ -1,13 +1,24 @@
 ﻿@inherits LayoutComponentBase
+@using IT_outCRM.Blazor.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="page">
-    <div class="sidebar">
+    <div class="sidebar @(isSidebarCollapsed ? "collapsed" : "")">
         <NavMenu />
     </div>
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">IT-outCRM - Система управления</a>
+            <div class="d-flex align-items-center w-100">
+                <button class="btn btn-link text-dark p-0 me-3 border-0" @onclick="ToggleSidebar" title="Свернуть/Развернуть меню">
+                    <i class="bi bi-list fs-3" style="color: var(--primary-dark);"></i>
+                </button>
+                
+                <div class="ms-auto">
+                     <!-- Можно добавить сюда уведомления или профиль позже -->
+                </div>
+            </div>
         </div>
 
         <article class="content px-4">
@@ -35,4 +46,23 @@
 @code {
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
+    
+    private bool isSidebarCollapsed = false;
+
+    private void ToggleSidebar()
+    {
+        isSidebarCollapsed = !isSidebarCollapsed;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Force authentication state check after first render
+            if (AuthStateProvider is CustomAuthenticationStateProvider customProvider)
+            {
+                customProvider.NotifyAuthenticationStateChanged();
+            }
+        }
+    }
 }

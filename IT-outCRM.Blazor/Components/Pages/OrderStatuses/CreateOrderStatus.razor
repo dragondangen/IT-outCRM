@@ -2,67 +2,74 @@
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Admin,Manager")]
 @inject IOrderStatusService OrderStatusService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Создание статуса - IT-outCRM</PageTitle>
 
-<div class="create-container">
-    <div class="page-header">
-        <div>
-            <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo("/order-statuses")'>
-                <i class="bi bi-arrow-left"></i> Назад к списку
-            </button>
-            <h2>➕ Создание нового статуса заказа</h2>
+<AuthorizeView Roles="Admin,Manager">
+    <Authorized Context="authContext">
+        <div class="create-container">
+            <div class="page-header">
+                <div>
+                    <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo("/order-statuses")'>
+                        <i class="bi bi-arrow-left"></i> Назад к списку
+                    </button>
+                    <h2><i class="bi bi-plus-circle"></i> Создание нового статуса заказа</h2>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            <div class="form-card">
+                <EditForm Model="orderStatus" OnValidSubmit="HandleSubmit" FormName="createOrderStatusForm">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Название статуса <span class="text-danger">*</span></label>
+                        <InputText id="name" class="form-control" @bind-Value="orderStatus!.Name" 
+                                  placeholder="Например: На согласовании, Ожидает оплаты..." />
+                        <ValidationMessage For="@(() => orderStatus!.Name)" class="text-danger" />
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-lightbulb"></i> <strong>Существующие статусы:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li><span class="badge bg-primary">Новый</span> - только что созданный заказ</li>
+                            <li><span class="badge bg-info">В работе</span> - заказ выполняется</li>
+                            <li><span class="badge bg-success">Завершен</span> - заказ выполнен</li>
+                            <li><span class="badge bg-danger">Отменен</span> - заказ отменен</li>
+                        </ul>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/order-statuses")'>
+                            <i class="bi bi-x-circle"></i> Отмена
+                        </button>
+                        <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            <i class="bi bi-check-circle"></i> Создать статус
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
         </div>
-    </div>
-
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
-        </div>
-    }
-
-    <div class="form-card">
-        <EditForm Model="orderStatus" OnValidSubmit="HandleSubmit" FormName="createOrderStatusForm">
-            <DataAnnotationsValidator />
-            
-            <div class="mb-3">
-                <label for="name" class="form-label">Название статуса <span class="text-danger">*</span></label>
-                <InputText id="name" class="form-control" @bind-Value="orderStatus!.Name" 
-                          placeholder="Например: На согласовании, Ожидает оплаты..." />
-                <ValidationMessage For="@(() => orderStatus!.Name)" class="text-danger" />
-            </div>
-
-            <div class="alert alert-info">
-                <i class="bi bi-lightbulb"></i> <strong>Существующие статусы:</strong>
-                <ul class="mb-0 mt-2">
-                    <li><span class="badge bg-primary">Новый</span> - только что созданный заказ</li>
-                    <li><span class="badge bg-info">В работе</span> - заказ выполняется</li>
-                    <li><span class="badge bg-success">Завершен</span> - заказ выполнен</li>
-                    <li><span class="badge bg-danger">Отменен</span> - заказ отменен</li>
-                </ul>
-            </div>
-
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/order-statuses")'>
-                    <i class="bi bi-x-circle"></i> Отмена
-                </button>
-                <button type="submit" class="btn btn-success" disabled="@isSubmitting">
-                    @if (isSubmitting)
-                    {
-                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                    }
-                    <i class="bi bi-check-circle"></i> Создать статус
-                </button>
-            </div>
-        </EditForm>
-    </div>
-</div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
 
 <style>
     .create-container {
@@ -131,9 +138,33 @@
 
         try
         {
-            // TODO: добавить CreateAsync когда будет на backend
-            errorMessage = "Функция создания статусов пока не реализована на backend. Существующие статусы управляются администратором базы данных.";
-            await Task.Delay(2000);
+            // Explicitly set token before request
+            var token = await TokenStorage.GetTokenAsync();
+            if (string.IsNullOrEmpty(token))
+            {
+                await Task.Delay(100);
+                token = await TokenStorage.GetTokenAsync();
+                
+                if (string.IsNullOrEmpty(token))
+                {
+                    errorMessage = "Ошибка авторизации: токен не найден. Попробуйте перезайти в систему.";
+                    isSubmitting = false;
+                    return;
+                }
+            }
+            
+            OrderStatusService.SetToken(token);
+
+            var result = await OrderStatusService.CreateAsync(orderStatus);
+            
+            if (result != null)
+            {
+                Navigation.NavigateTo("/order-statuses");
+            }
+            else
+            {
+                errorMessage = "Ошибка при создании статуса.";
+            }
         }
         catch (Exception ex)
         {
@@ -145,4 +176,3 @@
         }
     }
 }
-

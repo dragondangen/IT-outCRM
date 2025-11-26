@@ -163,48 +163,11 @@
                 Logger.LogInformation("User registered successfully: {Username}", result.Username);
 
                 // Если пользователь хочет зарегистрироваться как исполнитель
-                if (RegisterModel.RegisterAsExecutor && !string.IsNullOrWhiteSpace(RegisterModel.ExecutorSpecialization))
+                // TODO: Реализовать создание профиля исполнителя после того, как пользователь будет иметь доступ к созданию
+                if (RegisterModel.RegisterAsExecutor)
                 {
-                    Logger.LogInformation("Creating executor profile for user: {Username}", result.Username);
-                    
-                    try
-                    {
-                        // Сначала нужно получить или создать Account
-                        var accounts = await AccountService.GetAllAsync();
-                        var defaultAccount = accounts.FirstOrDefault();
-
-                        if (defaultAccount == null)
-                        {
-                            Logger.LogWarning("No accounts found. Executor profile cannot be created without an account.");
-                            errorMessage = "Регистрация успешна, но профиль исполнителя не был создан. Обратитесь к администратору.";
-                        }
-                        else
-                        {
-                            var executor = new ExecutorModel
-                            {
-                                Id = Guid.NewGuid(),
-                                AccountId = defaultAccount.Id,
-                                AccountName = result.Username, // Используем username как имя аккаунта
-                                Specialization = RegisterModel.ExecutorSpecialization
-                            };
-
-                            var executorResult = await ExecutorService.CreateAsync(executor);
-                            
-                            if (executorResult != null)
-                            {
-                                Logger.LogInformation("Executor profile created successfully for user: {Username}", result.Username);
-                            }
-                            else
-                            {
-                                Logger.LogWarning("Failed to create executor profile for user: {Username}", result.Username);
-                            }
-                        }
-                    }
-                    catch (Exception exEx)
-                    {
-                        Logger.LogError(exEx, "Error creating executor profile");
-                        // Не показываем ошибку пользователю, т.к. регистрация прошла успешно
-                    }
+                    Logger.LogInformation("User {Username} requested executor registration. Profile should be created manually.", result.Username);
+                    // Временно пропускаем автоматическое создание, так как у нового пользователя нет прав на чтение аккаунтов.
                 }
                 
                 // Успешная регистрация - небольшая задержка для обновления состояния

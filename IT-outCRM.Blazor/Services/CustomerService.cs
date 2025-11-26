@@ -12,6 +12,15 @@ namespace IT_outCRM.Blazor.Services
             _httpClient = httpClient;
         }
 
+        public void SetToken(string token)
+        {
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+
         public async Task<List<CustomerModel>> GetAllAsync()
         {
             try

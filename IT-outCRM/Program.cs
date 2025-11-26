@@ -22,6 +22,7 @@ builder.Services.AddSingleton<IExceptionResponseFactory, ExceptionResponseFactor
 
 // Конфигурация JWT аутентификации
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 
@@ -42,6 +43,26 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.Zero
+    };
+
+    // Отладочные события
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"[JwtBearer] Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine($"[JwtBearer] Token validated successfully for user: {context.Principal?.Identity?.Name}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"[JwtBearer] OnChallenge error: {context.Error}, description: {context.ErrorDescription}");
+            return Task.CompletedTask;
+        }
     };
 });
 

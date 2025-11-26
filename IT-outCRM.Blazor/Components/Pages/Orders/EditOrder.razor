@@ -7,6 +7,7 @@
 @inject ICustomerService CustomerService
 @inject IExecutorService ExecutorService
 @inject IOrderStatusService OrderStatusService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -18,7 +19,7 @@
             <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo($"/orders/{Id}")'>
                 <i class="bi bi-arrow-left"></i> Назад к деталям заказа
             </button>
-            <h2>✏️ Редактирование заказа</h2>
+            <h2><i class="bi bi-pencil-square"></i> Редактирование заказа</h2>
         </div>
     </div>
 
@@ -276,9 +277,30 @@
         order ??= new OrderModel();
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadData();
+        if (firstRender)
+        {
+            // Wait for JS init
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+                CustomerService.SetToken(token);
+                ExecutorService.SetToken(token);
+                OrderStatusService.SetToken(token);
+                
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoadingData = false;
+            }
+            StateHasChanged();
+        }
     }
 
     private async Task LoadData()
@@ -319,6 +341,13 @@
 
         try
         {
+            // Refresh token just in case
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+            }
+
             // Убедимся, что Id установлен
             order.Id = Id;
             var result = await OrderService.UpdateAsync(order);

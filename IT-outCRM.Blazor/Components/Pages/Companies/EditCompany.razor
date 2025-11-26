@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Admin,Manager")]
 @inject ICompanyService CompanyService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -15,7 +16,7 @@
             <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo("/companies")'>
                 <i class="bi bi-arrow-left"></i> Назад к списку
             </button>
-            <h2>✏️ Редактирование компании</h2>
+            <h2><i class="bi bi-pencil-square"></i> Редактирование компании</h2>
         </div>
     </div>
 
@@ -153,9 +154,25 @@
         company ??= new CompanyModel();
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadData();
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                CompanyService.SetToken(token);
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoadingData = false;
+            }
+            StateHasChanged();
+        }
     }
 
     private async Task LoadData()
@@ -164,9 +181,23 @@
         
         try
         {
-            // TODO: добавить GetByIdAsync когда будет на backend
+            // Используем GetByIdAsync, если он есть (мы его добавили)
+            // Или ищем в списке
+            // Лучше использовать прямой запрос если API позволяет
+            // var result = await CompanyService.GetByIdAsync(Id); // Если добавим в интерфейс
+            
+            // Пока используем GetAll как раньше
             var companies = await CompanyService.GetAllAsync();
-            company = companies.FirstOrDefault(c => c.Id == Id);
+            var found = companies.FirstOrDefault(c => c.Id == Id);
+            
+            if (found != null)
+            {
+                company = found;
+            }
+            else
+            {
+                company = null; // Not found
+            }
         }
         catch (Exception ex)
         {
@@ -187,9 +218,24 @@
 
         try
         {
-            // TODO: добавить UpdateAsync когда будет на backend
-            errorMessage = "Функция обновления компаний пока не реализована на backend";
-            await Task.Delay(1000);
+            // Refresh token just in case
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                CompanyService.SetToken(token);
+            }
+
+            // Мы уже добавили UpdateAsync в сервис
+            var result = await CompanyService.UpdateAsync(company);
+            
+            if (result != null)
+            {
+                Navigation.NavigateTo("/companies");
+            }
+            else
+            {
+                errorMessage = "Ошибка при обновлении компании.";
+            }
         }
         catch (Exception ex)
         {
@@ -201,4 +247,5 @@
         }
     }
 }
+
 

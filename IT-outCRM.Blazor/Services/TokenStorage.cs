@@ -1,80 +1,93 @@
-using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+using Microsoft.JSInterop;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class TokenStorage : ITokenStorage
     {
-        private readonly ProtectedLocalStorage _localStorage;
+        private readonly IJSRuntime _jsRuntime;
         private const string TokenKey = "authToken";
-        private string? _cachedToken; // In-memory cache для быстрого доступа
+        private string? _cachedToken; // In-memory cache
         private readonly ILogger<TokenStorage> _logger;
 
         public TokenStorage(
-            ProtectedLocalStorage localStorage,
+            IJSRuntime jsRuntime,
             ILogger<TokenStorage> logger)
         {
-            _localStorage = localStorage;
+            _jsRuntime = jsRuntime;
             _logger = logger;
+            Console.WriteLine($"[TokenStorage] Created instance {this.GetHashCode()}");
         }
 
         public async Task<string?> GetTokenAsync()
         {
-            // Сначала проверяем кэш
+            Console.WriteLine($"[TokenStorage {this.GetHashCode()}] GetTokenAsync called. Cached: {!string.IsNullOrEmpty(_cachedToken)}");
+            
+            // 1. Проверяем кэш
             if (!string.IsNullOrEmpty(_cachedToken))
             {
-                _logger.LogInformation("Token retrieved from cache");
                 return _cachedToken;
             }
 
-            // Затем пробуем загрузить из localStorage
+            // 2. Пробуем загрузить из localStorage
             try
             {
-                var result = await _localStorage.GetAsync<string>(TokenKey);
-                if (result.Success && !string.IsNullOrEmpty(result.Value))
+                // Используем прямой вызов localStorage, так как это стандарт API браузера
+                // Пытаемся вызвать JS. Если это пре-рендеринг, здесь вылетит исключение.
+                var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
+                
+                if (!string.IsNullOrEmpty(token))
                 {
-                    _cachedToken = result.Value;
-                    _logger.LogInformation("Token retrieved from localStorage");
+                    // Очищаем от лишних кавычек и пробелов
+                    _cachedToken = token.Trim().Trim('"');
+                    Console.WriteLine($"[TokenStorage] Token retrieved: {_cachedToken.Substring(0, Math.Min(10, _cachedToken.Length))}...");
                     return _cachedToken;
                 }
             }
+            catch (Exception ex) when (ex.Message.Contains("JavaScript interop calls cannot be issued"))
+            {
+                // Это нормальная ситуация при пре-рендеринге. Просто молча возвращаем null.
+                // _logger.LogDebug("JS Interop not available yet (Prerendering)");
+                return null;
+            }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error retrieving token from localStorage");
+                // Другие ошибки JS
+                _logger.LogWarning($"Error retrieving token: {ex.Message}");
+                return null;
             }
 
-            _logger.LogInformation("No token found");
             return null;
         }
 
         public async Task SetTokenAsync(string token)
         {
+            if (string.IsNullOrEmpty(token)) return;
+
             _cachedToken = token;
-            _logger.LogInformation("Token cached in memory");
             
             try
             {
-                await _localStorage.SetAsync(TokenKey, token);
-                _logger.LogInformation("Token saved to localStorage");
+                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenKey, token);
+                Console.WriteLine("[TokenStorage] Token saved to localStorage");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error saving token to localStorage");
+                _logger.LogWarning($"Error saving token: {ex.Message}");
             }
         }
 
         public async Task RemoveTokenAsync()
         {
             _cachedToken = null;
-            _logger.LogInformation("Token removed from cache");
             
             try
             {
-                await _localStorage.DeleteAsync(TokenKey);
-                _logger.LogInformation("Token removed from localStorage");
+                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
+                Console.WriteLine("[TokenStorage] Token removed from localStorage");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error removing token from localStorage");
+                _logger.LogWarning($"Error removing token: {ex.Message}");
             }
         }
 
@@ -85,6 +98,3 @@ namespace IT_outCRM.Blazor.Services
         }
     }
 }
-
-
-

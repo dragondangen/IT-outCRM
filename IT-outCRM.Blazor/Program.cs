@@ -31,50 +31,43 @@ builder.Services.AddHttpClient<IOrderService, OrderService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
-})
-.AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+});
 
 builder.Services.AddHttpClient<ICustomerService, CustomerService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
-})
-.AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+});
 
 builder.Services.AddHttpClient<IExecutorService, ExecutorService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
-})
-.AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+});
 
 builder.Services.AddHttpClient<ICompanyService, CompanyService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
-})
-.AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+});
 
 builder.Services.AddHttpClient<IAccountService, AccountService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
-})
-.AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+});
 
 builder.Services.AddHttpClient<IAccountStatusService, AccountStatusService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
-})
-.AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+});
 
 builder.Services.AddHttpClient<IOrderStatusService, OrderStatusService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
-})
-.AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+});
 
 // Add Authentication with a default scheme for Blazor Server
 builder.Services.AddAuthentication("BlazorAuth")

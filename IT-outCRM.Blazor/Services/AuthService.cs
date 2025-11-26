@@ -39,8 +39,13 @@ namespace IT_outCRM.Blazor.Services
                     
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
+                        Console.WriteLine($"Setting token: {authResponse.Token.Substring(0, Math.Min(10, authResponse.Token.Length))}...");
                         await _tokenStorage.SetTokenAsync(authResponse.Token);
                         
+                        // Verify token was set
+                        var storedToken = await _tokenStorage.GetTokenAsync();
+                        Console.WriteLine($"Token stored verification: {(storedToken == authResponse.Token ? "SUCCESS" : "FAILURE")}");
+
                         if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
                         {
                             customProvider.NotifyAuthenticationStateChanged();

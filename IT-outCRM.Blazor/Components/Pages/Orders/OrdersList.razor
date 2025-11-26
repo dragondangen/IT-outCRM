@@ -2,135 +2,142 @@
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
 @inject IOrderService OrderService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Заказы - IT-outCRM</PageTitle>
 
-<div class="orders-container">
-    <div class="page-header">
-        <div>
-            <h2>📦 Управление заказами</h2>
-            <p class="text-muted">Всего заказов: @filteredOrders.Count</p>
-        </div>
-        <button class="btn btn-primary btn-lg" @onclick="CreateOrder">
-            <i class="bi bi-plus-circle"></i> Создать заказ
-        </button>
-    </div>
-
-    <!-- Поиск и фильтры -->
-    <div class="filters-card">
-        <div class="row g-3">
-            <div class="col-md-6">
-                <div class="search-box">
-                    <i class="bi bi-search"></i>
-                    <input type="text" class="form-control" placeholder="Поиск по названию или описанию..." 
-                           @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterOrders" />
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <div class="orders-container">
+            <div class="page-header">
+                <div>
+                    <h2><i class="bi bi-box-seam"></i> Управление заказами</h2>
+                    <p class="text-muted">Всего заказов: @filteredOrders.Count</p>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" @onchange="OnStatusFilterChanged">
-                    <option value="">Все статусы</option>
-                    @foreach (var status in uniqueStatuses)
-                    {
-                        <option value="@status">@status</option>
-                    }
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-outline-secondary w-100" @onclick="ResetFilters">
-                    <i class="bi bi-x-circle"></i> Сбросить фильтры
+                <button class="btn btn-primary btn-lg" @onclick="CreateOrder">
+                    <i class="bi bi-plus-circle"></i> Создать заказ
                 </button>
             </div>
-        </div>
-    </div>
 
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
-        </div>
-    }
-
-    @if (isLoading)
-    {
-        <div class="loading-container">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-            <p class="mt-3">Загрузка заказов...</p>
-        </div>
-    }
-    else
-    {
-        @if (filteredOrders.Any())
-        {
-            <div class="orders-grid">
-                @foreach (var order in filteredOrders)
-                {
-                    <div class="order-card" @onclick="() => ViewOrder(order.Id)">
-                        <div class="order-card-header">
-                            <h5>@order.Name</h5>
-                            <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
-                        </div>
-                        <div class="order-card-body">
-                            <p class="description">@(string.IsNullOrEmpty(order.Description) ? "Нет описания" : (order.Description.Length > 100 ? order.Description.Substring(0, 100) + "..." : order.Description))</p>
-                            <div class="order-info">
-                                <div class="info-item">
-                                    <i class="bi bi-person"></i>
-                                    <span>@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="bi bi-briefcase"></i>
-                                    <span>@(string.IsNullOrEmpty(order.ExecutorName) ? "Не указан" : order.ExecutorName)</span>
-                                </div>
-                                <div class="info-item price">
-                                    <i class="bi bi-cash"></i>
-                                    <span>@order.Price.ToString("C")</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="order-card-footer">
-                            <button class="btn btn-sm btn-outline-info" @onclick:stopPropagation="true" @onclick="() => ViewOrder(order.Id)">
-                                <i class="bi bi-eye"></i> Просмотр
-                            </button>
-                            <button class="btn btn-sm btn-outline-warning" @onclick:stopPropagation="true" @onclick="() => EditOrder(order.Id)">
-                                <i class="bi bi-pencil"></i> Изменить
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick:stopPropagation="true" @onclick="() => ConfirmDelete(order.Id, order.Name)">
-                                <i class="bi bi-trash"></i> Удалить
-                            </button>
+            <!-- Поиск и фильтры -->
+            <div class="filters-card">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="text" class="form-control" placeholder="Поиск по названию или описанию..." 
+                                   @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterOrders" />
                         </div>
                     </div>
-                }
+                    <div class="col-md-3">
+                        <select class="form-select" @onchange="OnStatusFilterChanged">
+                            <option value="">Все статусы</option>
+                            @foreach (var status in uniqueStatuses)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-secondary w-100" @onclick="ResetFilters">
+                            <i class="bi bi-x-circle"></i> Сбросить фильтры
+                        </button>
+                    </div>
+                </div>
             </div>
-        }
-        else
-        {
-            <div class="empty-state">
-                <i class="bi bi-inbox"></i>
-                <h3>Нет заказов</h3>
-                <p class="text-muted">@(string.IsNullOrEmpty(searchTerm) ? "Создайте первый заказ, чтобы начать работу" : "По вашему запросу ничего не найдено")</p>
-                @if (string.IsNullOrEmpty(searchTerm))
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="loading-container">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3">Загрузка заказов...</p>
+                </div>
+            }
+            else
+            {
+                @if (filteredOrders.Any())
                 {
-                    <button class="btn btn-primary" @onclick="CreateOrder">
-                        <i class="bi bi-plus-circle"></i> Создать заказ
-                    </button>
+                    <div class="orders-grid">
+                        @foreach (var order in filteredOrders)
+                        {
+                            <div class="order-card" @onclick="() => ViewOrder(order.Id)">
+                                <div class="order-card-header">
+                                    <h5>@order.Name</h5>
+                                    <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
+                                </div>
+                                <div class="order-card-body">
+                                    <p class="description">@(string.IsNullOrEmpty(order.Description) ? "Нет описания" : (order.Description.Length > 100 ? order.Description.Substring(0, 100) + "..." : order.Description))</p>
+                                    <div class="order-info">
+                                        <div class="info-item">
+                                            <i class="bi bi-person"></i>
+                                            <span>@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <i class="bi bi-briefcase"></i>
+                                            <span>@(string.IsNullOrEmpty(order.ExecutorName) ? "Не указан" : order.ExecutorName)</span>
+                                        </div>
+                                        <div class="info-item price">
+                                            <i class="bi bi-cash"></i>
+                                            <span>@order.Price.ToString("C")</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="order-card-footer">
+                                    <button class="btn btn-sm btn-outline-info" @onclick:stopPropagation="true" @onclick="() => ViewOrder(order.Id)">
+                                        <i class="bi bi-eye"></i> Просмотр
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning" @onclick:stopPropagation="true" @onclick="() => EditOrder(order.Id)">
+                                        <i class="bi bi-pencil"></i> Изменить
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick:stopPropagation="true" @onclick="() => ConfirmDelete(order.Id, order.Name)">
+                                        <i class="bi bi-trash"></i> Удалить
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 }
                 else
                 {
-                    <button class="btn btn-outline-primary" @onclick="ResetFilters">
-                        <i class="bi bi-x-circle"></i> Сбросить фильтры
-                    </button>
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <h3>Нет заказов</h3>
+                        <p class="text-muted">@(string.IsNullOrEmpty(searchTerm) ? "Создайте первый заказ, чтобы начать работу" : "По вашему запросу ничего не найдено")</p>
+                        @if (string.IsNullOrEmpty(searchTerm))
+                        {
+                            <button class="btn btn-primary" @onclick="CreateOrder">
+                                <i class="bi bi-plus-circle"></i> Создать заказ
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-primary" @onclick="ResetFilters">
+                                <i class="bi bi-x-circle"></i> Сбросить фильтры
+                            </button>
+                        }
+                    </div>
                 }
-            </div>
-        }
-    }
-</div>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
 
 <style>
     .orders-container {
@@ -291,9 +298,25 @@
     private string searchTerm = string.Empty;
     private string selectedStatus = string.Empty;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadOrders();
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+                await LoadOrders();
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
     }
 
     private async Task LoadOrders()
@@ -373,6 +396,12 @@
     {
         try
         {
+             var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+            }
+
             var success = await OrderService.DeleteAsync(orderId);
             if (success)
             {

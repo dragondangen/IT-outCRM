@@ -10,6 +10,7 @@ namespace IT_outCRM.Blazor.Services
         Task<CustomerModel?> CreateAsync(CreateCustomerModel model);
         Task<CustomerModel?> UpdateAsync(CustomerModel model);
         Task<bool> DeleteAsync(Guid id);
+        void SetToken(string token);
     }
 }
 

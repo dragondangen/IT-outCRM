@@ -2,93 +2,97 @@
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Admin,Manager")]
 @inject ICompanyService CompanyService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@rendermode InteractiveServer
+@inject IConfiguration Config
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Компании - IT-outCRM</PageTitle>
 
-<div class="container-fluid mt-4">
-    <div class="page-header">
-        <div>
-            <h2>🏢 Управление компаниями</h2>
-            <p class="text-muted">Список всех компаний в системе</p>
-        </div>
-        <button class="btn btn-primary btn-lg" @onclick="CreateCompany">
-            <i class="bi bi-plus-circle"></i> Добавить компанию
-        </button>
-    </div>
-
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
-        </div>
-    }
-
-    @if (isLoading)
-    {
-        <div class="loading-container">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-            <p class="mt-3">Загрузка компаний...</p>
-        </div>
-    }
-    else
-    {
-        @if (companies.Any())
-        {
-            <div class="table-responsive">
-                <table class="table table-hover table-striped">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Название</th>
-                            <th>ИНН</th>
-                            <th>Адрес</th>
-                            <th class="text-end">Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var company in companies)
-                        {
-                            <tr>
-                                <td><strong>@company.Name</strong></td>
-                                <td>@company.Inn</td>
-                                <td>@company.Address</td>
-                                <td class="text-end">
-                                    <button class="btn btn-sm btn-info me-1" @onclick="() => ViewCompany(company.Id)" title="Просмотр">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-warning me-1" @onclick="() => EditCompany(company.Id)" title="Редактировать">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteCompany(company.Id)" title="Удалить">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
-            <div class="empty-state">
-                <i class="bi bi-building"></i>
-                <h3>Нет компаний</h3>
-                <p class="text-muted">Добавьте первую компанию, чтобы начать работу</p>
-                <button class="btn btn-primary" @onclick="CreateCompany">
+<AuthorizeView Roles="Admin,Manager">
+    <Authorized>
+        <div class="container-fluid mt-4">
+            
+            <div class="page-header">
+                <div>
+                    <h2><i class="bi bi-building"></i> Управление компаниями</h2>
+                    <p class="text-muted">Список всех компаний в системе</p>
+                </div>
+                <button class="btn btn-primary btn-lg" @onclick="CreateCompany">
                     <i class="bi bi-plus-circle"></i> Добавить компанию
                 </button>
             </div>
-        }
-    }
-</div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    <strong>Ошибка!</strong> @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="loading-container">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3">Загрузка компаний...</p>
+                </div>
+            }
+            else
+            {
+                @if (companies.Any())
+                {
+                    <div class="companies-grid">
+                        @foreach (var company in companies)
+                        {
+                            <div class="company-card">
+                                <div class="company-header">
+                                    <div class="company-icon">
+                                        <i class="bi bi-building"></i>
+                                    </div>
+                                    <h5>@company.Name</h5>
+                                </div>
+                                <div class="company-details">
+                                    <p><i class="bi bi-card-text"></i> <strong>ИНН:</strong> @(string.IsNullOrEmpty(company.Inn) ? "-" : company.Inn)</p>
+                                    <p><i class="bi bi-geo-alt"></i> <strong>Адрес:</strong> @(string.IsNullOrEmpty(company.Address) ? "-" : company.Address)</p>
+                                </div>
+                                <div class="company-actions">
+                                    <button class="btn btn-sm btn-outline-warning" @onclick="() => EditCompany(company.Id)" title="Редактировать">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCompany(company.Id)" title="Удалить">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-building"></i>
+                        <h3>Нет компаний</h3>
+                        <p class="text-muted">Добавьте первую компанию, чтобы начать работу</p>
+                        <button class="btn btn-primary" @onclick="CreateCompany">
+                            <i class="bi bi-plus-circle"></i> Добавить компанию
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-danger m-4">
+            У вас нет прав для просмотра этой страницы. <a href="/dashboard">Вернуться на главную</a>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
 
 <style>
     .page-header {
@@ -114,25 +118,68 @@
         margin-bottom: 20px;
     }
 
-    .table {
+    .companies-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .company-card {
         background: white;
-        border-radius: 10px;
-        overflow: hidden;
+        border-radius: 15px;
+        padding: 25px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
     }
 
-    .table thead th {
-        border: none;
+    .company-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .company-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .company-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .company-header h5 {
+        margin: 0;
         font-weight: 600;
+        color: #333;
     }
 
-    .table tbody tr {
-        transition: all 0.2s ease;
+    .company-details p {
+        margin-bottom: 10px;
+        color: #666;
+        font-size: 0.95rem;
     }
 
-    .table tbody tr:hover {
-        background-color: #f8f9fa;
-        transform: scale(1.01);
+    .company-details i {
+        color: #667eea;
+        margin-right: 8px;
+    }
+
+    .company-actions {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
     }
 </style>
 
@@ -140,10 +187,33 @@
     private List<CompanyModel> companies = new();
     private bool isLoading = true;
     private string errorMessage = string.Empty;
+    private string token = string.Empty;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadCompanies();
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            
+            // Retry logic for token
+            for (int i = 0; i < 3; i++)
+            {
+                token = await TokenStorage.GetTokenAsync() ?? "";
+                if (!string.IsNullOrEmpty(token)) break;
+                await Task.Delay(200);
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                await LoadCompanies();
+            }
+            else
+            {
+                errorMessage = "Не удалось авторизоваться. Пожалуйста, обновите страницу или войдите заново.";
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
     }
 
     private async Task LoadCompanies()
@@ -153,11 +223,16 @@
 
         try
         {
+            if (!string.IsNullOrEmpty(token))
+            {
+                CompanyService.SetToken(token);
+            }
+
             companies = await CompanyService.GetAllAsync();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Ошибка загрузки компаний: {ex.Message}";
+            errorMessage = $"Ошибка загрузки: {ex.Message}";
         }
         finally
         {
@@ -168,11 +243,6 @@
     private void CreateCompany()
     {
         Navigation.NavigateTo("/companies/create");
-    }
-
-    private void ViewCompany(Guid id)
-    {
-        Navigation.NavigateTo($"/companies/{id}");
     }
 
     private void EditCompany(Guid id)
@@ -203,4 +273,3 @@
         }
     }
 }
-

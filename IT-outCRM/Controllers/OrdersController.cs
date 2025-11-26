@@ -34,7 +34,7 @@ namespace IT_outCRM.Controllers
         public async Task<ActionResult<PagedResult<OrderDto>>> GetPaged([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var orders = await _orderService.GetPagedAsync(pageNumber, pageSize);
-            return Ok(orders);
+            return Ok(orders);  
         }
 
         /// <summary>

@@ -1,7 +1,7 @@
 ﻿@using IT_outCRM.Blazor.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -53,7 +53,7 @@
                     <hr class="my-2" />
 
                     <div class="nav-item px-3">
-                        <small class="text-muted px-3">СПРАВОЧНИКИ</small>
+                        <small class="text-accent-sidebar px-3">СПРАВОЧНИКИ</small>
                     </div>
 
                     <div class="nav-item px-3">

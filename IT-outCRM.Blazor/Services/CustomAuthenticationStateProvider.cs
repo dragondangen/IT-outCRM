@@ -17,6 +17,11 @@ namespace IT_outCRM.Blazor.Services
             _logger = logger;
         }
 
+        public async Task<string?> GetTokenAsync()
+        {
+            return await _tokenStorage.GetTokenAsync();
+        }
+
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
             var token = await _tokenStorage.GetTokenAsync();

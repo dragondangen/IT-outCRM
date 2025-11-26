@@ -1,131 +1,135 @@
 @page "/dashboard"
 @using Microsoft.AspNetCore.Authorization
 @using IT_outCRM.Blazor.Services
-@attribute [Authorize]
-@rendermode InteractiveServer
+@using IT_outCRM.Blazor.Models
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IOrderService OrderService
 @inject ICustomerService CustomerService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject ILogger<Dashboard> Logger
 
 <PageTitle>Панель управления - IT-outCRM</PageTitle>
 
-<div class="dashboard-container">
-    <h1 class="dashboard-title">📊 Панель управления</h1>
-    
-    <AuthorizeView>
-        <Authorized>
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <div class="dashboard-container">
+            <h1 class="dashboard-title">📊 Панель управления</h1>
+            
             <div class="welcome-message">
-                <h2>Добро пожаловать, @context.User.Identity?.Name!</h2>
+                <h2>Добро пожаловать, @authContext.User.Identity?.Name!</h2>
                 <p class="text-muted">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</p>
             </div>
-        </Authorized>
-    </AuthorizeView>
 
-    @if (isLoading)
-    {
-        <div class="text-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-            <p>Загрузка данных...</p>
+            @if (isLoading)
+            {
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p>Загрузка данных...</p>
+                </div>
+            }
+            else
+            {
+                <div class="stats-grid">
+                    <!-- Статистика заказов -->
+                    <div class="stat-card stat-card-primary">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-content">
+                            <h3>Всего заказов</h3>
+                            <p class="stat-number">@totalOrders</p>
+                        </div>
+                    </div>
+
+                    <!-- Статистика клиентов -->
+                    <div class="stat-card stat-card-success">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <h3>Всего клиентов</h3>
+                            <p class="stat-number">@totalCustomers</p>
+                        </div>
+                    </div>
+
+                    <!-- Активные заказы -->
+                    <div class="stat-card stat-card-warning">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-content">
+                            <h3>Активные заказы</h3>
+                            <p class="stat-number">@activeOrders</p>
+                        </div>
+                    </div>
+
+                    <!-- Завершенные заказы -->
+                    <div class="stat-card stat-card-info">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <h3>Завершено</h3>
+                            <p class="stat-number">@completedOrders</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Быстрые действия -->
+                <div class="quick-actions">
+                    <h3>⚡ Быстрые действия</h3>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/orders/create")'>
+                            ➕ Создать заказ
+                        </button>
+                        <button class="btn btn-success" @onclick='() => Navigation.NavigateTo("/customers/create")'>
+                            👤 Добавить клиента
+                        </button>
+                        <button class="btn btn-info" @onclick='() => Navigation.NavigateTo("/orders")'>
+                            📋 Все заказы
+                        </button>
+                        <button class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/customers")'>
+                            📇 Все клиенты
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Последние заказы -->
+                @if (recentOrders.Any())
+                {
+                    <div class="recent-orders">
+                        <h3>📝 Последние заказы</h3>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Клиент</th>
+                                        <th>Цена</th>
+                                        <th>Исполнитель</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var order in recentOrders.Take(5))
+                                    {
+                                        <tr style="cursor: pointer;" @onclick='() => Navigation.NavigateTo($"/orders")'>
+                                            <td><strong>@order.Name</strong></td>
+                                            <td>@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</td>
+                                            <td><strong>@order.Price.ToString("C")</strong></td>
+                                            <td>@(string.IsNullOrEmpty(order.ExecutorName) ? "Не указан" : order.ExecutorName)</td>
+                                            <td>
+                                                <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            }
         </div>
-    }
-    else
-    {
-        <div class="stats-grid">
-            <!-- Статистика заказов -->
-            <div class="stat-card stat-card-primary">
-                <div class="stat-icon">📦</div>
-                <div class="stat-content">
-                    <h3>Всего заказов</h3>
-                    <p class="stat-number">@totalOrders</p>
-                </div>
-            </div>
-
-            <!-- Статистика клиентов -->
-            <div class="stat-card stat-card-success">
-                <div class="stat-icon">👥</div>
-                <div class="stat-content">
-                    <h3>Всего клиентов</h3>
-                    <p class="stat-number">@totalCustomers</p>
-                </div>
-            </div>
-
-            <!-- Активные заказы -->
-            <div class="stat-card stat-card-warning">
-                <div class="stat-icon">⚡</div>
-                <div class="stat-content">
-                    <h3>Активные заказы</h3>
-                    <p class="stat-number">@activeOrders</p>
-                </div>
-            </div>
-
-            <!-- Завершенные заказы -->
-            <div class="stat-card stat-card-info">
-                <div class="stat-icon">✅</div>
-                <div class="stat-content">
-                    <h3>Завершено</h3>
-                    <p class="stat-number">@completedOrders</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Быстрые действия -->
-        <div class="quick-actions">
-            <h3>⚡ Быстрые действия</h3>
-            <div class="action-buttons">
-                <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/orders/create")'>
-                    ➕ Создать заказ
-                </button>
-                <button class="btn btn-success" @onclick='() => Navigation.NavigateTo("/customers/create")'>
-                    👤 Добавить клиента
-                </button>
-                <button class="btn btn-info" @onclick='() => Navigation.NavigateTo("/orders")'>
-                    📋 Все заказы
-                </button>
-                <button class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/customers")'>
-                    📇 Все клиенты
-                </button>
-            </div>
-        </div>
-
-        <!-- Последние заказы -->
-        @if (recentOrders.Any())
-        {
-            <div class="recent-orders">
-                <h3>📝 Последние заказы</h3>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Название</th>
-                                <th>Клиент</th>
-                                <th>Цена</th>
-                                <th>Исполнитель</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var order in recentOrders.Take(5))
-                            {
-                                <tr style="cursor: pointer;" @onclick='() => Navigation.NavigateTo($"/orders")'>
-                                    <td><strong>@order.Name</strong></td>
-                                    <td>@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</td>
-                                    <td><strong>@order.Price.ToString("C")</strong></td>
-                                    <td>@(string.IsNullOrEmpty(order.ExecutorName) ? "Не указан" : order.ExecutorName)</td>
-                                    <td>
-                                        <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        }
-    }
-</div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
 
 <style>
     .dashboard-container {
@@ -270,43 +274,68 @@
     private int completedOrders = 0;
     private List<OrderModel> recentOrders = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        Logger.LogInformation("=== DASHBOARD INITIALIZED ===");
-        
-        try
+        if (firstRender)
         {
-            isLoading = true;
-
-            // Загружаем статистику
-            var orders = await OrderService.GetAllAsync();
-            var customers = await CustomerService.GetAllAsync();
-
-            totalOrders = orders.Count;
-            totalCustomers = customers.Count;
+            await Task.Delay(500); // Даем время на инициализацию JS
             
-            Logger.LogInformation("Dashboard loaded: {Orders} orders, {Customers} customers", totalOrders, totalCustomers);
-            
-            // Подсчитываем активные и завершенные заказы
-            // Примерная логика: если OrderStatusName содержит "завершен" или "закрыт"
-            completedOrders = orders.Count(o => 
-                !string.IsNullOrEmpty(o.OrderStatusName) && 
-                (o.OrderStatusName.Contains("завершен", StringComparison.OrdinalIgnoreCase) || 
-                 o.OrderStatusName.Contains("закрыт", StringComparison.OrdinalIgnoreCase)));
-            activeOrders = totalOrders - completedOrders;
+            string? token = null;
+            // Пытаемся получить токен несколько раз
+            for (int i = 0; i < 3; i++)
+            {
+                 token = await TokenStorage.GetTokenAsync();
+                 if (!string.IsNullOrEmpty(token)) break;
+                 await Task.Delay(500);
+            }
 
-            // Последние 5 заказов
-            recentOrders = orders.Take(5).ToList();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error loading dashboard data");
-            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
-        }
-        finally
-        {
-            isLoading = false;
+            Logger.LogInformation("=== DASHBOARD INITIALIZED ===");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                 Logger.LogError("Dashboard: Token is STILL missing after retries. Redirecting to login.");
+                      Navigation.NavigateTo("/login");
+                      return;
+            }
+
+            try
+            {
+                // ЯВНАЯ УСТАНОВКА ТОКЕНА
+                if (!string.IsNullOrEmpty(token))
+                {
+                    OrderService.SetToken(token);
+                    CustomerService.SetToken(token);
+                }
+
+                // Загружаем статистику
+                var orders = await OrderService.GetAllAsync();
+                var customers = await CustomerService.GetAllAsync();
+
+                totalOrders = orders.Count;
+                totalCustomers = customers.Count;
+                
+                Logger.LogInformation("Dashboard loaded: {Orders} orders, {Customers} customers", totalOrders, totalCustomers);
+                
+                // Подсчитываем активные и завершенные заказы
+                completedOrders = orders.Count(o => 
+                    !string.IsNullOrEmpty(o.OrderStatusName) && 
+                    (o.OrderStatusName.Contains("завершен", StringComparison.OrdinalIgnoreCase) || 
+                     o.OrderStatusName.Contains("закрыт", StringComparison.OrdinalIgnoreCase)));
+                activeOrders = totalOrders - completedOrders;
+
+                // Последние 5 заказов
+                recentOrders = orders.Take(5).ToList();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading dashboard data");
+                Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
         }
     }
 }
-
