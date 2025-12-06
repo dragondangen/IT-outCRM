@@ -2,11 +2,13 @@
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @attribute [Authorize]
 @inject IOrderService OrderService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveServer
 
 <PageTitle>Детали заказа - IT-outCRM</PageTitle>
@@ -43,12 +45,37 @@
                 <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
             </div>
             <div class="actions">
+                <!-- Кнопки для администраторов и менеджеров -->
+                <AuthorizeView Roles="Admin,Manager">
+                    <Authorized>
                 <button class="btn btn-warning" @onclick="EditOrder">
                     <i class="bi bi-pencil"></i> Редактировать
                 </button>
                 <button class="btn btn-danger" @onclick="ConfirmDelete">
                     <i class="bi bi-trash"></i> Удалить
                 </button>
+                    </Authorized>
+                </AuthorizeView>
+                
+                <!-- Кнопка для исполнителей - взять заказ в работу -->
+                <AuthorizeView Roles="Executor">
+                    <Authorized>
+                        @if (canTakeOrder)
+                        {
+                            <button class="btn btn-success" @onclick="TakeOrder" disabled="@isTakingOrder">
+                                @if (isTakingOrder)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle"></i>
+                                }
+                                Взять заказ в работу
+                            </button>
+                        }
+                    </Authorized>
+                </AuthorizeView>
             </div>
         </div>
 
@@ -114,6 +141,15 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Сообщение об ошибке -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+            </div>
+        }
     }
 </div>
 
@@ -235,6 +271,9 @@
 
     private OrderModel? order;
     private bool isLoading = true;
+    private bool canTakeOrder = false;
+    private bool isTakingOrder = false;
+    private string errorMessage = string.Empty;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -261,6 +300,8 @@
     private async Task LoadOrder()
     {
         isLoading = true;
+        errorMessage = string.Empty;
+        
         try
         {
             Console.WriteLine($"[OrderDetails] Loading order with ID: {Id}");
@@ -272,16 +313,44 @@
             else
             {
                 Console.WriteLine($"[OrderDetails] Order loaded: {order.Name}, ID: {order.Id}");
+                
+                // Проверяем, может ли исполнитель взять заказ
+                await CheckIfCanTakeOrder();
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[OrderDetails] Ошибка загрузки заказа: {ex.Message}");
             Console.WriteLine($"[OrderDetails] Stack trace: {ex.StackTrace}");
+            errorMessage = $"Ошибка загрузки заказа: {ex.Message}";
         }
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task CheckIfCanTakeOrder()
+    {
+        if (order == null) return;
+        
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        // Проверяем, является ли пользователь исполнителем
+        if (user.IsInRole("Executor"))
+        {
+            // Заказ можно взять, если:
+            // 1. Исполнитель еще не назначен (ExecutorId == null)
+            // 2. Статус заказа "Опубликован" или "Published"
+            var status = order.OrderStatusName?.Trim() ?? string.Empty;
+            canTakeOrder = !order.ExecutorId.HasValue && 
+                          (status.Equals("Опубликован", StringComparison.OrdinalIgnoreCase) ||
+                           status.Equals("Published", StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            canTakeOrder = false;
         }
     }
 
@@ -310,15 +379,71 @@
     {
         try
         {
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+            }
+            
             var success = await OrderService.DeleteAsync(Id);
             if (success)
             {
                 Navigation.NavigateTo("/orders");
             }
+            else
+            {
+                errorMessage = "Ошибка при удалении заказа";
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Ошибка при удалении заказа: {ex.Message}");
+            errorMessage = $"Ошибка при удалении заказа: {ex.Message}";
+        }
+    }
+
+    private async Task TakeOrder()
+    {
+        if (order == null) return;
+        
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", 
+            $"Вы хотите взять заказ '{order.Name}' в работу?");
+        
+        if (!confirmed) return;
+
+        isTakingOrder = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+            }
+
+            var success = await OrderService.TakeOrderAsync(Id);
+            if (success)
+            {
+                // Перезагружаем заказ, чтобы увидеть обновления
+                await LoadOrder();
+                
+                // Показываем сообщение об успехе
+                await JS.InvokeVoidAsync("alert", "Заказ успешно взят в работу!");
+            }
+            else
+            {
+                errorMessage = "Ошибка при взятии заказа. Возможно, заказ уже занят или у вас нет прав.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка: {ex.Message}";
+            Console.WriteLine($"[OrderDetails] Error taking order: {ex.Message}");
+        }
+        finally
+        {
+            isTakingOrder = false;
         }
     }
 }

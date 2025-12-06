@@ -23,14 +23,10 @@ namespace IT_outCRM.Application.Validators.Order
             RuleFor(x => x.CustomerId)
                 .NotEmpty().WithMessage("ID клиента обязателен");
 
-            RuleFor(x => x.ExecutorId)
-                .NotEmpty().WithMessage("ID исполнителя обязателен");
-
             RuleFor(x => x.OrderStatusId)
                 .NotEmpty().WithMessage("ID статуса заказа обязателен");
 
-            RuleFor(x => x.SupportTeamId)
-                .NotEmpty().WithMessage("ID команды поддержки обязателен");
+            // ExecutorId и SupportTeamId необязательны - могут быть назначены позже
         }
     }
 }

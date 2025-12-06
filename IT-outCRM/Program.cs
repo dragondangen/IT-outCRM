@@ -246,6 +246,19 @@ if (app.Environment.IsProduction())
 
 app.UseHttpsRedirection();
 
+// Статические файлы (для аватаров) - ДО аутентификации, чтобы не требовалась авторизация
+var staticFilesOptions = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Кэширование статических файлов на 1 час
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
+        // Разрешаем доступ к статическим файлам без авторизации
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
+    }
+};
+app.UseStaticFiles(staticFilesOptions);
+
 // Rate Limiting перед CORS
 app.UseRateLimiter();
 

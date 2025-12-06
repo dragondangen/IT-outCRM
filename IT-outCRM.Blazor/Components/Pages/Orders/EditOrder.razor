@@ -2,7 +2,7 @@
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin,Manager")]
 @inject IOrderService OrderService
 @inject ICustomerService CustomerService
 @inject IExecutorService ExecutorService
@@ -104,11 +104,11 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="executor" class="form-label">Исполнитель <span class="text-danger">*</span></label>
+                        <label for="executor" class="form-label">Исполнитель</label>
                         @if (executors.Any())
                         {
-                            <InputSelect id="executor" class="form-select" @bind-Value="order!.ExecutorId">
-                                <option value="@Guid.Empty">-- Выберите исполнителя --</option>
+                            <InputSelect id="executor" class="form-select" @bind-Value="executorIdString">
+                                <option value="">-- Не назначен --</option>
                                 @foreach (var executor in executors)
                                 {
                                     <option value="@executor.Id">@executor.AccountName (@executor.Specialization)</option>
@@ -271,6 +271,21 @@
     private bool successMessage = false;
     private bool isSubmitting = false;
     private bool isLoadingData = true;
+    
+    // Вспомогательное свойство для nullable ExecutorId
+    private string executorIdString
+    {
+        get => order?.ExecutorId?.ToString() ?? string.Empty;
+        set
+        {
+            if (order != null)
+            {
+                order.ExecutorId = string.IsNullOrWhiteSpace(value) || !Guid.TryParse(value, out var guid) 
+                    ? null 
+                    : guid;
+            }
+        }
+    }
 
     protected override void OnInitialized()
     {
@@ -350,6 +365,28 @@
 
             // Убедимся, что Id установлен
             order.Id = Id;
+            
+            // Проверяем обязательные поля перед отправкой
+            if (order.CustomerId == Guid.Empty)
+            {
+                errorMessage = "Необходимо выбрать клиента.";
+                isSubmitting = false;
+                return;
+            }
+            
+            if (order.OrderStatusId == Guid.Empty)
+            {
+                errorMessage = "Необходимо выбрать статус заказа.";
+                isSubmitting = false;
+                return;
+            }
+            
+            // Убедимся, что ExecutorId корректно обработан (пустая строка = null)
+            if (order.ExecutorId == Guid.Empty)
+            {
+                order.ExecutorId = null;
+            }
+            
             var result = await OrderService.UpdateAsync(order);
             
             if (result != null)
@@ -360,12 +397,20 @@
             }
             else
             {
-                errorMessage = "Ошибка при обновлении заказа.";
+                errorMessage = "Ошибка при обновлении заказа. Попробуйте еще раз.";
             }
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Показываем детальное сообщение об ошибке
+            errorMessage = ex.Message;
+            Console.WriteLine($"[EditOrder] Update error: {ex.Message}");
         }
         catch (Exception ex)
         {
-            errorMessage = $"Ошибка: {ex.Message}";
+            errorMessage = $"Ошибка при обновлении заказа: {ex.Message}";
+            Console.WriteLine($"[EditOrder] Unexpected error: {ex.Message}");
+            Console.WriteLine($"[EditOrder] Stack trace: {ex.StackTrace}");
         }
         finally
         {

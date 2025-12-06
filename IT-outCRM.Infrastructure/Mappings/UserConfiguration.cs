@@ -38,6 +38,10 @@ namespace IT_outCRM.Infrastructure.Mappings
             builder.Property(x => x.IsActive)
                 .IsRequired()
                 .HasDefaultValue(true);
+
+            builder.Property(x => x.AvatarUrl)
+                .HasMaxLength(500)
+                .IsRequired(false);
         }
     }
 }

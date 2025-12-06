@@ -1,9 +1,16 @@
 @page "/profile"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
 @attribute [Authorize]
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthService AuthService
+@inject IProfileService ProfileService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
 @rendermode InteractiveServer
 
 <PageTitle>Профиль - IT-outCRM</PageTitle>
@@ -11,188 +18,537 @@
 <div class="profile-container">
     <AuthorizeView>
         <Authorized>
-            <div class="profile-header">
-                <div class="avatar-xl">
-                    @GetInitials(context.User.Identity?.Name ?? "?")
+            @if (isLoadingUser)
+            {
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Загрузка профиля...</p>
                 </div>
-                <div>
-                    <h2>@context.User.Identity?.Name</h2>
-                    <p class="text-muted mb-0">
-                        <i class="bi bi-shield-check"></i>
-                        @GetUserRole(context.User)
-                    </p>
-                </div>
-            </div>
-
-            <div class="profile-cards">
-                <div class="profile-card">
-                    <h5><i class="bi bi-person-circle"></i> Личная информация</h5>
-                    <div class="info-list">
-                        <div class="info-item">
-                            <label>Имя пользователя:</label>
-                            <span>@context.User.Identity?.Name</span>
+            }
+            else
+            {
+                <!-- Заголовок профиля с аватаром -->
+                <div class="profile-header">
+                    <div class="avatar-section">
+                        <div class="avatar-wrapper">
+                            @if (!string.IsNullOrEmpty(currentUser?.AvatarUrl))
+                            {
+                                <img src="@GetAvatarUrl(currentUser.AvatarUrl)" 
+                                     alt="@context.User.Identity?.Name" 
+                                     class="avatar-image" />
+                            }
+                            else
+                            {
+                                <div class="avatar-placeholder">
+                                    @GetInitials(context.User.Identity?.Name ?? "?")
+                                </div>
+                            }
+                            <div class="avatar-overlay">
+                                <label class="avatar-upload-btn">
+                                    <i class="bi bi-camera-fill"></i>
+                                    <InputFile OnChange="HandleFileSelected" 
+                                               accept="image/*" 
+                                               class="file-input-hidden" />
+                                </label>
+                            </div>
+                            @if (!string.IsNullOrEmpty(currentUser?.AvatarUrl))
+                            {
+                                <button class="avatar-delete-btn" @onclick="DeleteAvatar" title="Удалить аватар">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            }
                         </div>
-                        <div class="info-item">
-                            <label>Роль:</label>
-                            <span class="badge bg-primary">@GetUserRole(context.User)</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Статус:</label>
-                            <span class="badge bg-success">Активен</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Тип аутентификации:</label>
-                            <span>@context.User.Identity?.AuthenticationType</span>
+                    </div>
+                    <div class="profile-header-content">
+                        <h1>@context.User.Identity?.Name</h1>
+                        <p class="user-email">
+                            <i class="bi bi-envelope"></i> @currentUser?.Email
+                        </p>
+                        <div class="user-badges">
+                            <span class="role-badge role-@GetRoleClass(context.User)">
+                                <i class="bi bi-shield-check"></i> @GetUserRole(context.User)
+                            </span>
+                            <span class="status-badge status-active">
+                                <i class="bi bi-check-circle"></i> Активен
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <div class="profile-card">
-                    <h5><i class="bi bi-key"></i> Безопасность</h5>
-                    <div class="security-actions">
-                        <button class="btn btn-outline-primary btn-sm" disabled>
-                            <i class="bi bi-lock"></i> Сменить пароль
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" disabled>
-                            <i class="bi bi-shield-lock"></i> Настройки безопасности
-                        </button>
-                    </div>
-                    <p class="text-muted small mt-3 mb-0">
-                        <i class="bi bi-info-circle"></i> Функции скоро будут доступны
-                    </p>
-                </div>
-
-                @if (IsInRole(context.User, "Admin"))
+                <!-- Сообщения -->
+                @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <div class="profile-card admin-card">
-                        <h5><i class="bi bi-shield-fill-exclamation"></i> Администраторские права</h5>
-                        <p>У вас есть полный доступ ко всем функциям системы:</p>
-                        <ul>
-                            <li>Управление всеми заказами</li>
-                            <li>Управление всеми клиентами</li>
-                            <li>Доступ ко всей статистике</li>
-                            <li>Управление пользователями (скоро)</li>
-                        </ul>
-                    </div>
-                }
-                else if (IsInRole(context.User, "Manager"))
-                {
-                    <div class="profile-card manager-card">
-                        <h5><i class="bi bi-briefcase"></i> Права менеджера</h5>
-                        <p>Вы можете:</p>
-                        <ul>
-                            <li>Создавать и редактировать заказы</li>
-                            <li>Управлять клиентами</li>
-                            <li>Просматривать статистику</li>
-                            <li>Работать с отчетами</li>
-                        </ul>
-                    </div>
-                }
-                else
-                {
-                    <div class="profile-card client-card">
-                        <h5><i class="bi bi-person"></i> Клиентская учетная запись</h5>
-                        <p>Вы можете:</p>
-                        <ul>
-                            <li>Просматривать свои заказы</li>
-                            <li>Создавать новые заказы</li>
-                            <li>Отслеживать статус заказов</li>
-                        </ul>
-                        <button class="btn btn-primary btn-sm mt-2" @onclick='() => Navigation.NavigateTo("/my-orders")'>
-                            <i class="bi bi-box-seam"></i> Мои заказы
+                    <div class="alert alert-error">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>@errorMessage</span>
+                        <button type="button" class="alert-close" @onclick="() => errorMessage = string.Empty">
+                            <i class="bi bi-x"></i>
                         </button>
                     </div>
                 }
 
-                <div class="profile-card">
-                    <h5><i class="bi bi-clock-history"></i> Активность</h5>
-                    <div class="activity-list">
-                        <div class="activity-item">
-                            <i class="bi bi-check-circle text-success"></i>
-                            <span>Успешный вход в систему</span>
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>@successMessage</span>
+                        <button type="button" class="alert-close" @onclick="() => successMessage = string.Empty">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                }
+
+                @if (isUploading)
+                {
+                    <div class="alert alert-info">
+                        <div class="spinner-small"></div>
+                        <span>Загрузка аватара...</span>
+                    </div>
+                }
+
+                <!-- Карточки информации -->
+                <div class="profile-cards">
+                    <div class="profile-card">
+                        <h5 class="card-title">
+                            <i class="bi bi-person-circle"></i> Личная информация
+                        </h5>
+                        <div class="info-list">
+                            <div class="info-item">
+                                <label>Имя пользователя:</label>
+                                <span>@context.User.Identity?.Name</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Email:</label>
+                                <span>@currentUser?.Email</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Роль:</label>
+                                <span class="badge role-@GetRoleClass(context.User)">@GetUserRole(context.User)</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Статус:</label>
+                                <span class="badge status-active">Активен</span>
+                            </div>
+                            @if (currentUser != null && currentUser.CreatedAt != default(DateTime))
+                            {
+                                <div class="info-item">
+                                    <label>Дата регистрации:</label>
+                                    <span>@FormatDate(currentUser.CreatedAt)</span>
+                                </div>
+                            }
+                            @if (currentUser != null && currentUser.LastLoginAt.HasValue)
+                            {
+                                <div class="info-item">
+                                    <label>Последний вход:</label>
+                                    <span>@FormatDateTime(currentUser.LastLoginAt.Value)</span>
+                                </div>
+                            }
+                            else if (currentUser != null)
+                            {
+                                <div class="info-item">
+                                    <label>Последний вход:</label>
+                                    <span class="text-muted">Еще не входил</span>
+                                </div>
+                            }
                         </div>
-                        <div class="activity-item">
-                            <i class="bi bi-info-circle text-info"></i>
-                            <span>История активности скоро будет доступна</span>
+                    </div>
+
+                    <div class="profile-card">
+                        <h5 class="card-title">
+                            <i class="bi bi-key"></i> Безопасность
+                        </h5>
+                        <div class="security-actions">
+                            <button class="btn btn-outline-primary" disabled>
+                                <i class="bi bi-lock"></i> Сменить пароль
+                            </button>
+                            <button class="btn btn-outline-secondary" disabled>
+                                <i class="bi bi-shield-lock"></i> Настройки безопасности
+                            </button>
+                        </div>
+                        <p class="text-muted small mt-3 mb-0">
+                            <i class="bi bi-info-circle"></i> Функции скоро будут доступны
+                        </p>
+                    </div>
+
+                    @if (IsInRole(context.User, "Admin"))
+                    {
+                        <div class="profile-card admin-card">
+                            <h5 class="card-title">
+                                <i class="bi bi-shield-fill-exclamation"></i> Администраторские права
+                            </h5>
+                            <p>У вас есть полный доступ ко всем функциям системы:</p>
+                            <ul class="permissions-list">
+                                <li><i class="bi bi-check-circle"></i> Управление всеми заказами</li>
+                                <li><i class="bi bi-check-circle"></i> Управление всеми клиентами</li>
+                                <li><i class="bi bi-check-circle"></i> Доступ ко всей статистике</li>
+                                <li><i class="bi bi-check-circle"></i> Управление пользователями</li>
+                            </ul>
+                        </div>
+                    }
+                    else if (IsInRole(context.User, "Manager"))
+                    {
+                        <div class="profile-card manager-card">
+                            <h5 class="card-title">
+                                <i class="bi bi-briefcase"></i> Права менеджера
+                            </h5>
+                            <p>Вы можете:</p>
+                            <ul class="permissions-list">
+                                <li><i class="bi bi-check-circle"></i> Создавать и редактировать заказы</li>
+                                <li><i class="bi bi-check-circle"></i> Управлять клиентами</li>
+                                <li><i class="bi bi-check-circle"></i> Просматривать статистику</li>
+                                <li><i class="bi bi-check-circle"></i> Работать с отчетами</li>
+                            </ul>
+                        </div>
+                    }
+                    else if (IsInRole(context.User, "Executor"))
+                    {
+                        <div class="profile-card executor-card">
+                            <h5 class="card-title">
+                                <i class="bi bi-tools"></i> Права исполнителя
+                            </h5>
+                            <p>Вы можете:</p>
+                            <ul class="permissions-list">
+                                <li><i class="bi bi-check-circle"></i> Просматривать доступные заказы</li>
+                                <li><i class="bi bi-check-circle"></i> Брать заказы в работу</li>
+                                <li><i class="bi bi-check-circle"></i> Управлять своими заказами</li>
+                            </ul>
+                            <button class="btn btn-primary btn-sm mt-3" @onclick='() => Navigation.NavigateTo("/executor/my-orders")'>
+                                <i class="bi bi-list-check"></i> Мои заказы
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="profile-card client-card">
+                            <h5 class="card-title">
+                                <i class="bi bi-person"></i> Клиентская учетная запись
+                            </h5>
+                            <p>Вы можете:</p>
+                            <ul class="permissions-list">
+                                <li><i class="bi bi-check-circle"></i> Просматривать свои заказы</li>
+                                <li><i class="bi bi-check-circle"></i> Создавать новые заказы</li>
+                                <li><i class="bi bi-check-circle"></i> Отслеживать статус заказов</li>
+                            </ul>
+                            <button class="btn btn-primary btn-sm mt-3" @onclick='() => Navigation.NavigateTo("/my-orders")'>
+                                <i class="bi bi-box-seam"></i> Мои заказы
+                            </button>
+                        </div>
+                    }
+
+                    <div class="profile-card">
+                        <h5 class="card-title">
+                            <i class="bi bi-clock-history"></i> Активность
+                        </h5>
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <span>Успешный вход в систему</span>
+                            </div>
+                            @if (currentUser != null && currentUser.LastLoginAt.HasValue)
+                            {
+                                <div class="activity-item">
+                                    <i class="bi bi-clock text-info"></i>
+                                    <span>Последний вход: @FormatDateTime(currentUser.LastLoginAt.Value)</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="activity-item">
+                                    <i class="bi bi-clock text-muted"></i>
+                                    <span class="text-muted">Это первый вход в систему</span>
+                                </div>
+                            }
+                            <div class="activity-item">
+                                <i class="bi bi-info-circle text-info"></i>
+                                <span>История активности скоро будет доступна</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            }
         </Authorized>
     </AuthorizeView>
 </div>
 
 <style>
     .profile-container {
-        padding: 20px;
-        max-width: 1200px;
+        padding: 30px;
+        max-width: 1400px;
         margin: 0 auto;
+        min-height: calc(100vh - 200px);
     }
 
+    /* Заголовок профиля */
     .profile-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         color: white;
-        padding: 40px;
-        border-radius: 15px;
+        padding: 50px;
+        border-radius: 20px;
         display: flex;
         align-items: center;
-        gap: 30px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        gap: 40px;
+        margin-bottom: 35px;
+        box-shadow: 0 8px 30px rgba(17, 153, 142, 0.3);
+        position: relative;
+        overflow: hidden;
     }
 
-    .avatar-xl {
-        width: 100px;
-        height: 100px;
-        background: white;
-        color: #667eea;
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .avatar-section {
+        position: relative;
+        z-index: 1;
+    }
+
+    .avatar-wrapper {
+        position: relative;
+        width: 140px;
+        height: 140px;
+    }
+
+    .avatar-image {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 5px solid white;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .avatar-placeholder {
+        width: 140px;
+        height: 140px;
+        background: rgba(255, 255, 255, 0.95);
+        color: #11998e;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.5rem;
+        font-size: 3.5rem;
         font-weight: bold;
-        flex-shrink: 0;
+        border: 5px solid white;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
 
-    .profile-header h2 {
-        margin: 0;
-        font-size: 2rem;
+    .avatar-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        cursor: pointer;
     }
 
+    .avatar-wrapper:hover .avatar-overlay {
+        opacity: 1;
+    }
+
+    .avatar-upload-btn {
+        width: 50px;
+        height: 50px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #11998e;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: transform 0.2s;
+        position: relative;
+    }
+
+    .avatar-upload-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .file-input-hidden {
+        position: absolute;
+        width: 0;
+        height: 0;
+        opacity: 0;
+        overflow: hidden;
+    }
+
+    .avatar-delete-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 32px;
+        height: 32px;
+        background: #dc3545;
+        border: none;
+        border-radius: 50%;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .avatar-delete-btn:hover {
+        background: #c82333;
+        transform: scale(1.1);
+    }
+
+    .profile-header-content {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+    }
+
+    .profile-header-content h1 {
+        margin: 0 0 10px 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+
+    .user-email {
+        font-size: 1.1rem;
+        margin: 0 0 15px 0;
+        opacity: 0.95;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .user-badges {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .role-badge, .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+    }
+
+    .status-active {
+        background: rgba(40, 167, 69, 0.3);
+    }
+
+    /* Сообщения */
+    .alert {
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+    }
+
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c2c7;
+    }
+
+    .alert-success {
+        background: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #badbcc;
+    }
+
+    .alert-info {
+        background: #d1ecf1;
+        color: #055160;
+        border: 1px solid #bee5eb;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .alert-close {
+        position: absolute;
+        right: 15px;
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        padding: 5px;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .alert-close:hover {
+        opacity: 1;
+    }
+
+    .spinner-small {
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(5, 81, 96, 0.2);
+        border-top: 3px solid #055160;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    /* Карточки */
     .profile-cards {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 20px;
+        gap: 25px;
     }
 
     .profile-card {
         background: white;
-        border-radius: 15px;
-        padding: 25px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
     }
 
-    .profile-card h5 {
-        color: #667eea;
+    .profile-card:hover {
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-title {
+        color: #11998e;
         font-weight: 600;
-        margin-bottom: 20px;
+        margin: 0 0 25px 0;
+        font-size: 1.3rem;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
 
     .info-list {
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 18px;
     }
 
     .info-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 0;
+        padding: 12px 0;
         border-bottom: 1px solid #f0f0f0;
     }
 
@@ -202,53 +558,357 @@
 
     .info-item label {
         font-weight: 600;
-        color: #666;
+        color: #6c757d;
+        font-size: 0.95rem;
+    }
+
+    .info-item span {
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
+    .badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .role-admin {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .role-manager {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .role-executor {
+        background: #cfe2ff;
+        color: #084298;
+    }
+
+    .role-client {
+        background: #d1ecf1;
+        color: #055160;
+    }
+
+    .status-active {
+        background: #d1e7dd;
+        color: #0f5132;
     }
 
     .security-actions {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
     }
 
     .admin-card {
-        border-left: 4px solid #dc3545;
+        border-left: 5px solid #dc3545;
     }
 
     .manager-card {
-        border-left: 4px solid #ffc107;
+        border-left: 5px solid #ffc107;
+    }
+
+    .executor-card {
+        border-left: 5px solid #0d6efd;
     }
 
     .client-card {
-        border-left: 4px solid #0dcaf0;
+        border-left: 5px solid #0dcaf0;
+    }
+
+    .permissions-list {
+        list-style: none;
+        padding: 0;
+        margin: 15px 0 0 0;
+    }
+
+    .permissions-list li {
+        padding: 10px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #495057;
+    }
+
+    .permissions-list li i {
+        color: #11998e;
+        font-size: 1.1rem;
     }
 
     .activity-list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
     }
 
     .activity-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px;
+        gap: 12px;
+        padding: 12px;
         background: #f8f9fa;
-        border-radius: 8px;
+        border-radius: 10px;
+        transition: background 0.2s;
+    }
+
+    .activity-item:hover {
+        background: #e9ecef;
     }
 
     .activity-item i {
         font-size: 1.2rem;
     }
+
+    /* Состояние загрузки */
+    .loading-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 20px;
+        text-align: center;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #11998e;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-state p {
+        color: #6c757d;
+        font-size: 1.1rem;
+    }
+
+    /* Адаптивность */
+    @@media (max-width: 768px) {
+        .profile-container {
+            padding: 20px;
+        }
+
+        .profile-header {
+            flex-direction: column;
+            text-align: center;
+            padding: 30px 25px;
+        }
+
+        .profile-header-content h1 {
+            font-size: 2rem;
+        }
+
+        .profile-cards {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 @code {
+    private UserModel? currentUser;
+    private bool isLoadingUser = true;
+    private bool isUploading = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                AuthService.SetToken(token);
+                ProfileService.SetToken(token);
+                await LoadUserProfile();
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoadingUser = false;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadUserProfile()
+    {
+        isLoadingUser = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser != null)
+            {
+                Console.WriteLine($"[Profile] User loaded: {currentUser.Username}");
+                Console.WriteLine($"[Profile] LastLoginAt: {currentUser.LastLoginAt}");
+                Console.WriteLine($"[Profile] LastLoginAt HasValue: {currentUser.LastLoginAt.HasValue}");
+                if (currentUser.LastLoginAt.HasValue)
+                {
+                    Console.WriteLine($"[Profile] LastLoginAt Value: {currentUser.LastLoginAt.Value}");
+                    Console.WriteLine($"[Profile] LastLoginAt Kind: {currentUser.LastLoginAt.Value.Kind}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки профиля: {ex.Message}";
+            Console.WriteLine($"[Profile] Error loading user: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingUser = false;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File == null) return;
+
+        // Проверка размера файла (5MB)
+        const long maxFileSize = 5 * 1024 * 1024;
+        if (e.File.Size > maxFileSize)
+        {
+            errorMessage = "Размер файла не должен превышать 5MB";
+            return;
+        }
+
+        // Проверка типа файла
+        var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif" };
+        if (!allowedTypes.Contains(e.File.ContentType))
+        {
+            errorMessage = "Поддерживаются только форматы: JPG, PNG, GIF";
+            return;
+        }
+
+        isUploading = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                ProfileService.SetToken(token);
+            }
+
+            using var stream = e.File.OpenReadStream(maxFileSize);
+            var avatarUrl = await ProfileService.UploadAvatarAsync(stream, e.File.Name);
+            
+            if (!string.IsNullOrEmpty(avatarUrl))
+            {
+                if (currentUser != null)
+                {
+                    currentUser.AvatarUrl = avatarUrl;
+                }
+                successMessage = "Аватар успешно загружен!";
+                
+                // Перезагружаем профиль для получения обновленных данных
+                await LoadUserProfile();
+            }
+            else
+            {
+                errorMessage = "Ошибка при загрузке аватара";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка при загрузке аватара: {ex.Message}";
+            Console.WriteLine($"[Profile] Error uploading avatar: {ex.Message}");
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private async Task DeleteAvatar()
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Вы уверены, что хотите удалить аватар?");
+        if (!confirmed) return;
+
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                ProfileService.SetToken(token);
+            }
+
+            var success = await ProfileService.DeleteAvatarAsync();
+            if (success)
+            {
+                if (currentUser != null)
+                {
+                    currentUser.AvatarUrl = null;
+                }
+                successMessage = "Аватар успешно удален!";
+                await LoadUserProfile();
+            }
+            else
+            {
+                errorMessage = "Ошибка при удалении аватара";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка при удалении аватара: {ex.Message}";
+            Console.WriteLine($"[Profile] Error deleting avatar: {ex.Message}");
+        }
+    }
+
+    private string GetAvatarUrl(string? avatarUrl)
+    {
+        if (string.IsNullOrEmpty(avatarUrl))
+            return string.Empty;
+
+        // Если URL уже полный, возвращаем как есть
+        if (avatarUrl.StartsWith("http://") || avatarUrl.StartsWith("https://"))
+            return avatarUrl;
+
+        // Получаем базовый URL API из конфигурации
+        var apiBaseUrl = Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5295";
+        
+        // Если avatarUrl начинается с /, используем его напрямую
+        if (avatarUrl.StartsWith("/"))
+            return $"{apiBaseUrl.TrimEnd('/')}{avatarUrl}";
+        
+        return $"{apiBaseUrl.TrimEnd('/')}/{avatarUrl}";
+    }
+
     private string GetUserRole(System.Security.Claims.ClaimsPrincipal user)
     {
         if (user.IsInRole("Admin")) return "Администратор";
         if (user.IsInRole("Manager")) return "Менеджер";
+        if (user.IsInRole("Executor")) return "Исполнитель";
         return "Клиент";
+    }
+
+    private string GetRoleClass(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Admin")) return "admin";
+        if (user.IsInRole("Manager")) return "manager";
+        if (user.IsInRole("Executor")) return "executor";
+        return "client";
     }
 
     private bool IsInRole(System.Security.Claims.ClaimsPrincipal user, string role)
@@ -264,6 +924,50 @@
             return $"{parts[0][0]}{parts[1][0]}".ToUpper();
         return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
     }
+
+    private string FormatDate(DateTime dateTime)
+    {
+        // Даты из API обычно в UTC, но после JSON десериализации Kind может быть Unspecified
+        // Предполагаем, что Unspecified даты из API - это UTC
+        DateTime utcTime;
+        if (dateTime.Kind == DateTimeKind.Utc)
+        {
+            utcTime = dateTime;
+        }
+        else if (dateTime.Kind == DateTimeKind.Unspecified)
+        {
+            // Предполагаем, что это UTC время из БД
+            utcTime = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+        }
+        else
+        {
+            utcTime = dateTime.ToUniversalTime();
+        }
+        
+        var localTime = utcTime.ToLocalTime();
+        return localTime.ToString("dd.MM.yyyy");
+    }
+
+    private string FormatDateTime(DateTime dateTime)
+    {
+        // Даты из API обычно в UTC, но после JSON десериализации Kind может быть Unspecified
+        // Предполагаем, что Unspecified даты из API - это UTC
+        DateTime utcTime;
+        if (dateTime.Kind == DateTimeKind.Utc)
+        {
+            utcTime = dateTime;
+        }
+        else if (dateTime.Kind == DateTimeKind.Unspecified)
+        {
+            // Предполагаем, что это UTC время из БД
+            utcTime = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+        }
+        else
+        {
+            utcTime = dateTime.ToUniversalTime();
+        }
+        
+        var localTime = utcTime.ToLocalTime();
+        return localTime.ToString("dd.MM.yyyy HH:mm");
+    }
 }
-
-

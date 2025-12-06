@@ -11,6 +11,7 @@ namespace IT_outCRM.Blazor.Services
         Task<string?> GetTokenAsync();
         Task<List<UserModel>> GetAllUsersAsync();
         Task<bool> DeleteUserAsync(Guid userId);
+        Task<UserModel?> GetCurrentUserAsync();
         void SetToken(string token);
     }
 }

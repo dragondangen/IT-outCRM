@@ -9,6 +9,7 @@ namespace IT_outCRM.Application.DTOs.Auth
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
         public bool IsActive { get; set; }
+        public string? AvatarUrl { get; set; }
     }
 }
 

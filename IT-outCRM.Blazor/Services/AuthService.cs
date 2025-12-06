@@ -215,5 +215,29 @@ namespace IT_outCRM.Blazor.Services
                 return false;
             }
         }
+
+        public async Task<UserModel?> GetCurrentUserAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/auth/me");
+                if (response.IsSuccessStatusCode)
+                {
+                    var user = await response.Content.ReadFromJsonAsync<UserModel>();
+                    return user;
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[AuthService] Failed to get current user: {error}");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Exception getting current user: {ex.Message}");
+                return null;
+            }
+        }
     }
 }

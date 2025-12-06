@@ -9,7 +9,7 @@ namespace IT_outCRM.Application.DTOs.Order
         public Guid CustomerId { get; set; }
         public Guid? ExecutorId { get; set; }
         public Guid OrderStatusId { get; set; }
-        public Guid SupportTeamId { get; set; }
+        public Guid? SupportTeamId { get; set; }
     }
 }
 

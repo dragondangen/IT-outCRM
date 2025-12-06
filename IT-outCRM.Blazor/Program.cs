@@ -75,6 +75,12 @@ builder.Services.AddHttpClient<IContactPersonService, ContactPersonService>(clie
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+builder.Services.AddHttpClient<IProfileService, ProfileService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(60); // Больше времени для загрузки файлов
+}).AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+
 // Add Authentication with a default scheme for Blazor Server
 builder.Services.AddAuthentication("BlazorAuth")
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, BlazorAuthenticationHandler>("BlazorAuth", null);

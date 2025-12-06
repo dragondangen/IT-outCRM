@@ -1,0 +1,823 @@
+@page "/executor/my-orders"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Executor")]
+@inject IOrderService OrderService
+@inject ITokenStorage TokenStorage
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Мои заказы - IT-outCRM</PageTitle>
+
+<div class="executor-orders-container">
+    <!-- Заголовок страницы -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1><i class="bi bi-briefcase-fill"></i> Мои заказы</h1>
+            <p class="header-subtitle">Заказы, которые вы взяли в работу</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Загрузка ваших заказов...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Статистика -->
+        @if (myOrders.Any())
+        {
+            <div class="stats-grid">
+                <div class="stat-card stat-total">
+                    <div class="stat-icon-wrapper">
+                        <i class="bi bi-box-seam stat-icon"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Всего заказов</p>
+                        <p class="stat-number">@myOrders.Count</p>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-active">
+                    <div class="stat-icon-wrapper">
+                        <i class="bi bi-clock-history stat-icon"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">В работе</p>
+                        <p class="stat-number">@activeOrdersCount</p>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-completed">
+                    <div class="stat-icon-wrapper">
+                        <i class="bi bi-check-circle-fill stat-icon"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Завершено</p>
+                        <p class="stat-number">@completedOrdersCount</p>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-revenue">
+                    <div class="stat-icon-wrapper">
+                        <i class="bi bi-cash-coin stat-icon"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Общая сумма</p>
+                        <p class="stat-number">@totalRevenue.ToString("C", new System.Globalization.CultureInfo("ru-RU"))</p>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Панель поиска и фильтров -->
+        @if (myOrders.Any())
+        {
+            <div class="filters-section">
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <i class="bi bi-search search-icon"></i>
+                        <input type="text" 
+                               class="search-input" 
+                               placeholder="Поиск по названию или описанию..." 
+                               @bind="searchTerm" 
+                               @bind:event="oninput" 
+                               @onkeyup="FilterOrders" />
+                        @if (!string.IsNullOrEmpty(searchTerm))
+                        {
+                            <button class="clear-search" @onclick="ClearSearch">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        }
+                    </div>
+                    @if (uniqueStatuses.Any())
+                    {
+                        <select class="status-filter" @onchange="OnStatusFilterChanged">
+                            <option value="">Все статусы</option>
+                            @foreach (var status in uniqueStatuses)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    }
+                    @if (!string.IsNullOrEmpty(searchTerm) || !string.IsNullOrEmpty(selectedStatus))
+                    {
+                        <button class="btn btn-reset-filters" @onclick="ResetFilters">
+                            <i class="bi bi-arrow-counterclockwise"></i> Сбросить
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Сообщения об ошибках -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-error">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span>@errorMessage</span>
+                <button type="button" class="alert-close" @onclick="() => errorMessage = string.Empty">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        }
+
+        <!-- Список заказов -->
+        @if (filteredOrders.Any())
+        {
+            <div class="orders-grid">
+                @foreach (var order in filteredOrders)
+                {
+                    <div class="order-card">
+                        <div class="order-card-header">
+                            <div class="order-title-section">
+                                <h3>@order.Name</h3>
+                                <span class="status-badge status-@GetStatusClass(order.OrderStatusName)">
+                                    @(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)
+                                </span>
+                            </div>
+                        </div>
+                        <div class="order-card-body">
+                            <p class="order-description">
+                                @(string.IsNullOrEmpty(order.Description) ? "Нет описания" : 
+                                  (order.Description.Length > 150 ? order.Description.Substring(0, 150) + "..." : order.Description))
+                            </p>
+                            
+                            <div class="order-details">
+                                <div class="detail-item">
+                                    <i class="bi bi-person"></i>
+                                    <div class="detail-content">
+                                        <span class="detail-label">Клиент:</span>
+                                        <span class="detail-value">@(string.IsNullOrEmpty(order.CustomerName) ? "Не указан" : order.CustomerName)</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <i class="bi bi-cash-coin"></i>
+                                    <div class="detail-content">
+                                        <span class="detail-label">Стоимость:</span>
+                                        <span class="detail-value price">@order.Price.ToString("C", new System.Globalization.CultureInfo("ru-RU"))</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="order-card-footer">
+                            <button class="btn-view-order" @onclick="() => ViewOrder(order.Id)">
+                                <i class="bi bi-eye"></i> Просмотр
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <!-- Пустое состояние -->
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="bi bi-inbox"></i>
+                </div>
+                <h3>@(string.IsNullOrEmpty(searchTerm) && string.IsNullOrEmpty(selectedStatus) ? "У вас пока нет заказов" : "Ничего не найдено")</h3>
+                <p class="empty-text">
+                    @(string.IsNullOrEmpty(searchTerm) && string.IsNullOrEmpty(selectedStatus)
+                        ? "Вы еще не взяли ни одного заказа в работу. Перейдите на страницу заказов, чтобы взять заказ в работу."
+                        : "По вашему запросу ничего не найдено. Попробуйте изменить критерии поиска.")
+                </p>
+                @if (string.IsNullOrEmpty(searchTerm) && string.IsNullOrEmpty(selectedStatus))
+                {
+                    <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/orders")'>
+                        <i class="bi bi-box-seam"></i> Перейти к заказам
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-outline-primary" @onclick="ResetFilters">
+                        <i class="bi bi-arrow-counterclockwise"></i> Сбросить фильтры
+                    </button>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .executor-orders-container {
+        padding: 30px;
+        max-width: 1600px;
+        margin: 0 auto;
+        min-height: calc(100vh - 200px);
+    }
+
+    /* Заголовок */
+    .page-header {
+        margin-bottom: 35px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .header-content h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-content h1 i {
+        color: #11998e;
+    }
+
+    .header-subtitle {
+        font-size: 1.1rem;
+        color: #6c757d;
+        margin: 0;
+    }
+
+    /* Статистика */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 25px;
+        margin-bottom: 35px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 18px;
+        padding: 25px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .stat-icon-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: white;
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin: 0 0 6px 0;
+        font-weight: 500;
+    }
+
+    .stat-number {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .stat-total .stat-icon-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .stat-total .stat-number {
+        color: #667eea;
+    }
+
+    .stat-active .stat-icon-wrapper {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .stat-active .stat-number {
+        color: #f5576c;
+    }
+
+    .stat-completed .stat-icon-wrapper {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    .stat-completed .stat-number {
+        color: #11998e;
+    }
+
+    .stat-revenue .stat-icon-wrapper {
+        background: linear-gradient(135deg, #fad961 0%, #f76b1c 100%);
+    }
+    .stat-revenue .stat-number {
+        color: #f76b1c;
+    }
+
+    /* Панель поиска */
+    .filters-section {
+        margin-bottom: 30px;
+    }
+
+    .search-container {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .search-input-wrapper {
+        flex: 1;
+        position: relative;
+        min-width: 300px;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        font-size: 1.2rem;
+        z-index: 1;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 14px 50px 14px 55px;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #11998e;
+        box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.1);
+    }
+
+    .clear-search {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        padding: 5px;
+        transition: color 0.2s;
+    }
+
+    .clear-search:hover {
+        color: #dc3545;
+    }
+
+    .status-filter {
+        padding: 14px 20px;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        font-size: 1rem;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 200px;
+    }
+
+    .status-filter:focus {
+        outline: none;
+        border-color: #11998e;
+        box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.1);
+    }
+
+    .btn-reset-filters {
+        background: #f8f9fa;
+        color: #6c757d;
+        border: 2px solid #dee2e6;
+        padding: 14px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    .btn-reset-filters:hover {
+        background: #e9ecef;
+        border-color: #adb5bd;
+    }
+
+    /* Сообщение об ошибке */
+    .alert {
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+    }
+
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c2c7;
+    }
+
+    .alert-close {
+        position: absolute;
+        right: 15px;
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        padding: 5px;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .alert-close:hover {
+        opacity: 1;
+    }
+
+    /* Сетка заказов */
+    .orders-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 25px;
+    }
+
+    /* Карточка заказа */
+    .order-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .order-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .order-card-header {
+        padding: 25px;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+
+    .order-title-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .order-title-section h3 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 600;
+        flex: 1;
+    }
+
+    .status-badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+    }
+
+    .order-card-body {
+        padding: 25px;
+        flex: 1;
+    }
+
+    .order-description {
+        color: #495057;
+        margin: 0 0 20px 0;
+        line-height: 1.6;
+        min-height: 60px;
+    }
+
+    .order-details {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .detail-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .detail-item i {
+        color: #11998e;
+        font-size: 1.3rem;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .detail-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .detail-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
+    .detail-value.price {
+        font-weight: 700;
+        color: #11998e;
+        font-size: 1.2rem;
+    }
+
+    .order-card-footer {
+        padding: 20px 25px;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn-view-order {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-view-order:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+    }
+
+    /* Состояние загрузки */
+    .loading-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 20px;
+        text-align: center;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #11998e;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-state p {
+        color: #6c757d;
+        font-size: 1.1rem;
+    }
+
+    /* Пустое состояние */
+    .empty-state {
+        text-align: center;
+        padding: 80px 40px;
+        background: white;
+        border-radius: 18px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .empty-icon {
+        font-size: 5rem;
+        color: #dee2e6;
+        margin-bottom: 25px;
+    }
+
+    .empty-state h3 {
+        font-size: 1.8rem;
+        color: #2c3e50;
+        margin: 0 0 15px 0;
+        font-weight: 600;
+    }
+
+    .empty-text {
+        font-size: 1.1rem;
+        color: #6c757d;
+        margin: 0 0 30px 0;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Адаптивность */
+    @@media (max-width: 768px) {
+        .executor-orders-container {
+            padding: 20px;
+        }
+
+        .header-content h1 {
+            font-size: 2rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .search-container {
+            flex-direction: column;
+        }
+
+        .search-input-wrapper {
+            min-width: 100%;
+        }
+
+        .orders-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .order-title-section {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+</style>
+
+@code {
+    private List<OrderModel> myOrders = new();
+    private List<OrderModel> filteredOrders = new();
+    private List<string> uniqueStatuses = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string searchTerm = string.Empty;
+    private string selectedStatus = string.Empty;
+
+    private int activeOrdersCount => myOrders.Count(o => 
+        !string.IsNullOrEmpty(o.OrderStatusName) && 
+        !o.OrderStatusName.Contains("завершен", StringComparison.OrdinalIgnoreCase) &&
+        !o.OrderStatusName.Contains("закрыт", StringComparison.OrdinalIgnoreCase) &&
+        !o.OrderStatusName.Contains("completed", StringComparison.OrdinalIgnoreCase) &&
+        !o.OrderStatusName.Contains("closed", StringComparison.OrdinalIgnoreCase));
+
+    private int completedOrdersCount => myOrders.Count(o => 
+        !string.IsNullOrEmpty(o.OrderStatusName) && 
+        (o.OrderStatusName.Contains("завершен", StringComparison.OrdinalIgnoreCase) || 
+         o.OrderStatusName.Contains("закрыт", StringComparison.OrdinalIgnoreCase) ||
+         o.OrderStatusName.Contains("completed", StringComparison.OrdinalIgnoreCase) ||
+         o.OrderStatusName.Contains("closed", StringComparison.OrdinalIgnoreCase)));
+
+    private decimal totalRevenue => myOrders.Sum(o => o.Price);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                OrderService.SetToken(token);
+                await LoadMyOrders();
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMyOrders()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            // Используем GetMyOrdersAsync, который автоматически вернет заказы исполнителя
+            myOrders = await OrderService.GetMyOrdersAsync();
+            
+            uniqueStatuses = myOrders
+                .Select(o => o.OrderStatusName)
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Distinct()
+                .OrderBy(s => s)
+                .ToList();
+            
+            FilterOrders();
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"[ExecutorMyOrders] Error loading orders: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки заказов: {ex.Message}";
+            Console.WriteLine($"[ExecutorMyOrders] Error loading orders: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void FilterOrders()
+    {
+        filteredOrders = myOrders.Where(o =>
+            (string.IsNullOrEmpty(searchTerm) ||
+             o.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             (!string.IsNullOrEmpty(o.Description) && o.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) &&
+            (string.IsNullOrEmpty(selectedStatus) || o.OrderStatusName == selectedStatus)
+        ).ToList();
+    }
+
+    private void OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? string.Empty;
+        FilterOrders();
+    }
+
+    private void ResetFilters()
+    {
+        searchTerm = string.Empty;
+        selectedStatus = string.Empty;
+        FilterOrders();
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = string.Empty;
+        FilterOrders();
+    }
+
+    private string GetStatusClass(string? statusName)
+    {
+        if (string.IsNullOrEmpty(statusName))
+            return "default";
+        
+        var status = statusName.ToLower();
+        if (status.Contains("завершен") || status.Contains("закрыт") || status.Contains("completed") || status.Contains("closed"))
+            return "success";
+        if (status.Contains("рассмотрени") || status.Contains("review"))
+            return "warning";
+        if (status.Contains("опубликован") || status.Contains("published"))
+            return "info";
+        return "primary";
+    }
+
+    private void ViewOrder(Guid orderId)
+    {
+        Navigation.NavigateTo($"/orders/{orderId}");
+    }
+}
+
+

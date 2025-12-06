@@ -25,12 +25,17 @@
                     </NavLink>
                 </div>
 
-                @* Для исполнителей - Заказы и Мои услуги *@
+                @* Для исполнителей - Заказы, Мои заказы и Мои услуги *@
                 @if (context.User.IsInRole("Executor"))
                 {
                     <div class="nav-item px-3">
                         <NavLink class="nav-link" href="orders">
                             <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Заказы
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="executor/my-orders">
+                            <span class="bi bi-list-check" aria-hidden="true"></span> Мои заказы
                         </NavLink>
                     </div>
                     <div class="nav-item px-3">
@@ -156,8 +161,28 @@
 
     private async Task HandleLogout()
     {
-        await AuthService.LogoutAsync();
-        Navigation.NavigateTo("/login", forceLoad: false);
+        try
+        {
+            await AuthService.LogoutAsync();
+            
+            // Небольшая задержка перед навигацией для завершения logout
+            await Task.Delay(100);
+            
+            // Используем forceLoad для полной очистки состояния
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+        catch (Exception)
+        {
+            // В случае ошибки всё равно перенаправляем на логин
+            try
+            {
+                Navigation.NavigateTo("/login", forceLoad: true);
+            }
+            catch
+            {
+                // Игнорируем ошибки навигации
+            }
+        }
     }
 
     private string GetUserRole(System.Security.Claims.ClaimsPrincipal user)

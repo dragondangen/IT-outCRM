@@ -214,11 +214,126 @@ namespace IT_outCRM.Blazor.Services
                 {
                     return await response.Content.ReadFromJsonAsync<OrderModel>();
                 }
-                return null;
+                
+                // Читаем сообщение об ошибке из ответа
+                var errorContent = await response.Content.ReadAsStringAsync();
+                string errorMessage = "Ошибка при обновлении заказа";
+                
+                // Если ответ пустой, используем дефолтное сообщение
+                if (string.IsNullOrWhiteSpace(errorContent))
+                {
+                    errorMessage = $"Ошибка сервера ({response.StatusCode})";
+                }
+                // Пытаемся распарсить JSON ошибки
+                else if (errorContent.TrimStart().StartsWith('{') || errorContent.TrimStart().StartsWith('['))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(errorContent);
+                        var root = doc.RootElement;
+                        
+                        // Проверяем формат с массивом errors (валидационные ошибки)
+                        if (root.TryGetProperty("errors", out var errorsElement))
+                        {
+                            var errorList = new List<string>();
+                            if (errorsElement.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var error in errorsElement.EnumerateArray())
+                                {
+                                    var errorText = error.ValueKind == JsonValueKind.String 
+                                        ? error.GetString() 
+                                        : error.ToString();
+                                    if (!string.IsNullOrWhiteSpace(errorText))
+                                    {
+                                        errorList.Add(errorText);
             }
-            catch
+                                }
+                            }
+                            else if (errorsElement.ValueKind == JsonValueKind.Object)
+                            {
+                                // Формат: {"errors": {"Field": ["Error1", "Error2"]}}
+                                foreach (var property in errorsElement.EnumerateObject())
+                                {
+                                    if (property.Value.ValueKind == JsonValueKind.Array)
+                                    {
+                                        foreach (var error in property.Value.EnumerateArray())
+                                        {
+                                            var errorText = error.ValueKind == JsonValueKind.String 
+                                                ? error.GetString() 
+                                                : error.ToString();
+                                            if (!string.IsNullOrWhiteSpace(errorText))
+                                            {
+                                                errorList.Add($"{property.Name}: {errorText}");
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var errorText = property.Value.ValueKind == JsonValueKind.String 
+                                            ? property.Value.GetString() 
+                                            : property.Value.ToString();
+                                        if (!string.IsNullOrWhiteSpace(errorText))
+                                        {
+                                            errorList.Add($"{property.Name}: {errorText}");
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (errorList.Any())
+                            {
+                                errorMessage = string.Join(". ", errorList);
+                            }
+                        }
+                        // Проверяем формат ErrorResponse (из middleware)
+                        else if (root.TryGetProperty("message", out var messageElement))
+                        {
+                            errorMessage = messageElement.ValueKind == JsonValueKind.String 
+                                ? messageElement.GetString() ?? errorMessage 
+                                : messageElement.ToString();
+                            
+                            if (root.TryGetProperty("details", out var detailsElement) && detailsElement.ValueKind == JsonValueKind.String)
+                            {
+                                var details = detailsElement.GetString();
+                                if (!string.IsNullOrEmpty(details))
+                                {
+                                    errorMessage += $". {details}";
+                                }
+                            }
+                        }
+                        // Проверяем ProblemDetails формат
+                        else if (root.TryGetProperty("title", out var titleElement))
+                        {
+                            errorMessage = titleElement.ValueKind == JsonValueKind.String 
+                                ? titleElement.GetString() ?? errorMessage 
+                                : titleElement.ToString();
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        // Если не удалось распарсить JSON, используем исходный текст
+                        if (errorContent.Length < 500)
+                        {
+                            errorMessage = errorContent.Trim();
+                        }
+                    }
+                }
+                else
+                {
+                    // Простой текстовый ответ
+                    errorMessage = errorContent.Trim().Trim('"');
+                }
+                
+                throw new InvalidOperationException(errorMessage);
+            }
+            catch (InvalidOperationException)
             {
-                return null;
+                // Пробрасываем уже созданные исключения с сообщениями об ошибках
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Ошибка при обновлении заказа: {ex.Message}", ex);
             }
         }
 
