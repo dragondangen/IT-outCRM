@@ -6,15 +6,13 @@
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@inject IConfiguration Config
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Компании - IT-outCRM</PageTitle>
 
 <AuthorizeView Roles="Admin,Manager">
-    <Authorized>
+    <Authorized Context="authContext">
         <div class="container-fluid mt-4">
-            
             <div class="page-header">
                 <div>
                     <h2><i class="bi bi-building"></i> Управление компаниями</h2>
@@ -28,8 +26,7 @@
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill"></i> 
-                    <strong>Ошибка!</strong> @errorMessage
+                    <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
                     <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
                 </div>
             }
@@ -47,30 +44,58 @@
             {
                 @if (companies.Any())
                 {
-                    <div class="companies-grid">
-                        @foreach (var company in companies)
-                        {
-                            <div class="company-card">
-                                <div class="company-header">
-                                    <div class="company-icon">
-                                        <i class="bi bi-building"></i>
-                                    </div>
-                                    <h5>@company.Name</h5>
-                                </div>
-                                <div class="company-details">
-                                    <p><i class="bi bi-card-text"></i> <strong>ИНН:</strong> @(string.IsNullOrEmpty(company.Inn) ? "-" : company.Inn)</p>
-                                    <p><i class="bi bi-geo-alt"></i> <strong>Адрес:</strong> @(string.IsNullOrEmpty(company.Address) ? "-" : company.Address)</p>
-                                </div>
-                                <div class="company-actions">
-                                    <button class="btn btn-sm btn-outline-warning" @onclick="() => EditCompany(company.Id)" title="Редактировать">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCompany(company.Id)" title="Удалить">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        }
+                    <!-- Таблица компаний -->
+                    <div class="table-wrapper">
+                        <table class="companies-table">
+                            <thead>
+                                <tr>
+                                    <th>Название компании</th>
+                                    <th>ИНН</th>
+                                    <th>Адрес</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var company in companies)
+                                {
+                                    var currentCompanyId = company.Id;
+                                    <tr>
+                                        <td>
+                                            <div class="company-name-cell">
+                                                <div class="avatar-small">
+                                                    <i class="bi bi-building"></i>
+                                                </div>
+                                                <span>@(string.IsNullOrEmpty(company.Name) ? "Без названия" : company.Name)</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="inn-badge">
+                                                @(string.IsNullOrEmpty(company.Inn) ? "Не указан" : company.Inn)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="address-text">
+                                                @(string.IsNullOrEmpty(company.Address) ? "Не указан" : company.Address)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="btn btn-edit" 
+                                                        @onclick="@(() => EditCompany(currentCompanyId))"
+                                                        title="Изменить">
+                                                    <i class="bi bi-pencil"></i> Изменить
+                                                </button>
+                                                <button class="btn btn-delete" 
+                                                        @onclick="@(() => DeleteCompany(currentCompanyId))"
+                                                        title="Удалить">
+                                                    <i class="bi bi-trash"></i> Удалить
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
                     </div>
                 }
                 else
@@ -88,9 +113,7 @@
         </div>
     </Authorized>
     <NotAuthorized>
-        <div class="alert alert-danger m-4">
-            У вас нет прав для просмотра этой страницы. <a href="/dashboard">Вернуться на главную</a>
-        </div>
+        <RedirectToLogin />
     </NotAuthorized>
 </AuthorizeView>
 
@@ -118,68 +141,160 @@
         margin-bottom: 20px;
     }
 
-    .companies-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 20px;
-    }
-
-    .company-card {
+    /* Таблица */
+    .table-wrapper {
         background: white;
         border-radius: 15px;
-        padding: 25px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
+        overflow: hidden;
+        overflow-x: auto;
     }
 
-    .company-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    .companies-table {
+        width: 100%;
+        border-collapse: collapse;
     }
 
-    .company-header {
+    .companies-table thead {
+        background: #f8f9fa;
+    }
+
+    .companies-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .companies-table tbody tr {
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s;
+    }
+
+    .companies-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .companies-table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .companies-table td {
+        padding: 18px 15px;
+        color: #495057;
+        vertical-align: middle;
+    }
+
+    .company-name-cell {
         display: flex;
         align-items: center;
-        gap: 15px;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #f0f0f0;
+        gap: 12px;
     }
 
-    .company-icon {
-        width: 50px;
-        height: 50px;
+    .avatar-small {
+        width: 40px;
+        height: 40px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 12px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 700;
         color: white;
-        font-size: 1.5rem;
+        flex-shrink: 0;
     }
 
-    .company-header h5 {
-        margin: 0;
-        font-weight: 600;
-        color: #333;
+    .avatar-small i {
+        font-size: 1.2rem;
+        color: white;
     }
 
-    .company-details p {
-        margin-bottom: 10px;
-        color: #666;
-        font-size: 0.95rem;
+    .inn-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background: #e7f3ff;
+        color: #0066cc;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        font-family: 'Courier New', monospace;
     }
 
-    .company-details i {
-        color: #667eea;
-        margin-right: 8px;
+    .address-text {
+        color: #6c757d;
+        font-size: 0.875rem;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
     }
 
-    .company-actions {
-        margin-top: 20px;
+    .table-actions {
         display: flex;
-        gap: 10px;
-        justify-content: flex-end;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .table-actions .btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .table-actions .btn-edit {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .table-actions .btn-edit:hover {
+        background: #ffeaa7;
+        transform: translateY(-1px);
+    }
+
+    .table-actions .btn-delete {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .table-actions .btn-delete:hover {
+        background: #f5c2c7;
+        transform: translateY(-1px);
+    }
+
+    @@media (max-width: 768px) {
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .table-actions {
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .table-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .address-text {
+            max-width: 150px;
+        }
     }
 </style>
 
@@ -187,29 +302,22 @@
     private List<CompanyModel> companies = new();
     private bool isLoading = true;
     private string errorMessage = string.Empty;
-    private string token = string.Empty;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
             
-            // Retry logic for token
-            for (int i = 0; i < 3; i++)
-            {
-                token = await TokenStorage.GetTokenAsync() ?? "";
-                if (!string.IsNullOrEmpty(token)) break;
-                await Task.Delay(200);
-            }
-
             if (!string.IsNullOrEmpty(token))
             {
-            await LoadCompanies();
+                CompanyService.SetToken(token);
+                await LoadCompanies();
             }
             else
             {
-                errorMessage = "Не удалось авторизоваться. Пожалуйста, обновите страницу или войдите заново.";
+                errorMessage = "Не удалось получить токен авторизации.";
                 isLoading = false;
             }
             StateHasChanged();
@@ -223,11 +331,6 @@
 
         try
         {
-            if (!string.IsNullOrEmpty(token))
-            {
-                CompanyService.SetToken(token);
-            }
-
             companies = await CompanyService.GetAllAsync();
         }
         catch (Exception ex)
@@ -252,18 +355,23 @@
 
     private async Task DeleteCompany(Guid id)
     {
-        if (await JS.InvokeAsync<bool>("confirm", "Вы уверены, что хотите удалить эту компанию?"))
+        if (await JS.InvokeAsync<bool>("confirm", "Вы уверены?"))
         {
             try
             {
-                var success = await CompanyService.DeleteAsync(id);
-                if (success)
+                var token = await TokenStorage.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    CompanyService.SetToken(token);
+                }
+
+                if (await CompanyService.DeleteAsync(id))
                 {
                     await LoadCompanies();
                 }
                 else
                 {
-                    errorMessage = "Ошибка при удалении компании";
+                    errorMessage = "Ошибка при удалении";
                 }
             }
             catch (Exception ex)

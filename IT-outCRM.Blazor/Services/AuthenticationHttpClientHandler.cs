@@ -24,6 +24,15 @@ namespace IT_outCRM.Blazor.Services
                 // Получаем токен через AuthStateProvider (он должен быть Scoped и иметь кэш)
                 var token = await _authStateProvider.GetTokenAsync();
                 
+                // Если токен не получен, пробуем еще раз после небольшой задержки
+                // Это помогает при первом запросе, когда токен еще не загружен
+                if (string.IsNullOrEmpty(token))
+                {
+                    Console.WriteLine($"[AuthHandler] Token not found on first attempt, retrying after delay...");
+                    await Task.Delay(100);
+                    token = await _authStateProvider.GetTokenAsync();
+                }
+                
                 if (!string.IsNullOrEmpty(token))
                 {
                     // CLEANUP: Ensure no extra quotes or spaces
@@ -31,12 +40,12 @@ namespace IT_outCRM.Blazor.Services
                     
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                     Console.WriteLine($"[AuthHandler] Attached token to {request.RequestUri}");
-                    Console.WriteLine($"[AuthHandler] Header value: {request.Headers.Authorization}");
+                    Console.WriteLine($"[AuthHandler] Token length: {token.Length}, preview: {token.Substring(0, Math.Min(20, token.Length))}...");
                 }
                 else
                 {
                     Console.WriteLine($"[AuthHandler] WARNING: No token available for {request.RequestUri}");
-                     _logger.LogWarning($"No token found for request {request.RequestUri}. Check if you are logged in.");
+                    _logger.LogWarning($"No token found for request {request.RequestUri}. Check if you are logged in.");
                 }
             }
             catch (Exception ex)
@@ -49,6 +58,7 @@ namespace IT_outCRM.Blazor.Services
                 else
                 {
                     _logger.LogError(ex, "Error attaching token");
+                    Console.WriteLine($"[AuthHandler] Exception: {ex.Message}");
                 }
             }
 
@@ -67,6 +77,18 @@ namespace IT_outCRM.Blazor.Services
                         Console.WriteLine($"[AuthHandler] WWW-Authenticate: {header}");
                     }
                 }
+                
+                // НЕ удаляем токен автоматически при 401 - это может быть временная ошибка
+                // Токен должен удаляться только при явном logout
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _logger.LogWarning($"Request to {request.RequestUri} returned 403 Forbidden");
+                Console.WriteLine($"[AuthHandler] 403 Forbidden from {request.RequestUri}");
+                Console.WriteLine($"[AuthHandler] Token is still valid, but user doesn't have required permissions");
+                
+                // НЕ удаляем токен при 403 - это ошибка прав доступа, а не авторизации
+                // Токен валиден, но у пользователя нет прав на этот ресурс
             }
 
             return response;

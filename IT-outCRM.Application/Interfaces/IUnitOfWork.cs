@@ -13,6 +13,7 @@ namespace IT_outCRM.Application.Interfaces
         IContactPersonRepository ContactPersons { get; }
         IUserRepository Users { get; }
         IOrderStatusRepository OrderStatuses { get; }
+        IServiceRepository Services { get; }
         
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

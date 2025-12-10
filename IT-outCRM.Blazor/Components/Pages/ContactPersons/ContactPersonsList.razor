@@ -5,18 +5,22 @@
 @inject IContactPersonService ContactPersonService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Контактные лица - IT-outCRM</PageTitle>
 
 <AuthorizeView Roles="Admin,Manager,User">
-    <Authorized>
-        <div class="list-container">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1><i class="bi bi-person-rolodex"></i> Контактные лица</h1>
+    <Authorized Context="authContext">
+        <div class="container-fluid mt-4">
+            <div class="page-header">
+                <div>
+                    <h2><i class="bi bi-person-rolodex"></i> Управление контактными лицами</h2>
+                    <p class="text-muted">Список всех контактных лиц в системе</p>
+                </div>
                 <AuthorizeView Roles="Admin,Manager" Context="innerContext">
-                    <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/contactpersons/create")'>
-                        <i class="bi bi-plus-lg"></i> Создать контакт
+                    <button class="btn btn-primary btn-lg" @onclick="CreateContactPerson">
+                        <i class="bi bi-plus-circle"></i> Добавить контакт
                     </button>
                 </AuthorizeView>
             </div>
@@ -24,67 +28,108 @@
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill"></i> 
-                    <strong>Ошибка!</strong> @errorMessage
+                    <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
                     <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
                 </div>
             }
 
             @if (isLoading)
             {
-                <div class="text-center my-5">
+                <div class="loading-container">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Загрузка...</span>
                     </div>
-                    <p class="mt-2 text-muted">Загрузка данных...</p>
-                </div>
-            }
-            else if (contactPersons == null || !contactPersons.Any())
-            {
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Список контактных лиц пуст.
+                    <p class="mt-3">Загрузка контактных лиц...</p>
                 </div>
             }
             else
             {
-                <div class="row">
-                    @foreach (var person in contactPersons)
-                    {
-                        <div class="col-md-6 col-lg-4 mb-4">
-                            <div class="card h-100 shadow-sm hover-card">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <h5 class="card-title mb-0 text-primary">@person.FullName</h5>
-                                        <span class="badge bg-info text-dark">@person.Role</span>
-                                    </div>
-                                    
-                                    <p class="card-text mb-2">
-                                        <i class="bi bi-envelope text-muted me-2"></i>
-                                        <a href="mailto:@person.Email" class="text-decoration-none text-dark">@person.Email</a>
-                                    </p>
-                                    
-                                    <p class="card-text">
-                                        <i class="bi bi-telephone text-muted me-2"></i>
-                                        <a href="tel:@person.PhoneNumber" class="text-decoration-none text-dark">@person.PhoneNumber</a>
-                                    </p>
-
-                                    <div class="mt-3 d-flex justify-content-end gap-2">
-                                        <AuthorizeView Roles="Admin,Manager" Context="actionContext">
-                                            <button class="btn btn-sm btn-outline-primary" @onclick='() => Navigation.NavigateTo($"/contactpersons/edit/{person.Id}")'>
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                        </AuthorizeView>
-                                        <AuthorizeView Roles="Admin" Context="deleteContext">
-                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteContactPerson(person.Id)">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </AuthorizeView>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
+                @if (contactPersons.Any())
+                {
+                    <!-- Таблица контактных лиц -->
+                    <div class="table-wrapper">
+                        <table class="contact-persons-table">
+                            <thead>
+                                <tr>
+                                    <th>Имя</th>
+                                    <th>Email</th>
+                                    <th>Телефон</th>
+                                    <th>Роль</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var person in contactPersons)
+                                {
+                                    var currentPersonId = person.Id;
+                                    <tr>
+                                        <td>
+                                            <div class="person-name-cell">
+                                                <div class="avatar-small">
+                                                    @if (string.IsNullOrEmpty(person.FullName))
+                                                    {
+                                                        <i class="bi bi-person"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>@GetInitials(person.FullName)</span>
+                                                    }
+                                                </div>
+                                                <span>@(string.IsNullOrEmpty(person.FullName) ? "Без имени" : person.FullName)</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <a href="mailto:@person.Email" class="email-link">
+                                                <i class="bi bi-envelope"></i> @(string.IsNullOrEmpty(person.Email) ? "Не указан" : person.Email)
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="tel:@person.PhoneNumber" class="phone-link">
+                                                <i class="bi bi-telephone"></i> @(string.IsNullOrEmpty(person.PhoneNumber) ? "Не указан" : person.PhoneNumber)
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="role-badge">
+                                                @(string.IsNullOrEmpty(person.Role) ? "Не указана" : person.Role)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <AuthorizeView Roles="Admin,Manager" Context="actionContext">
+                                                    <button class="btn btn-edit" 
+                                                            @onclick="@(() => EditContactPerson(currentPersonId))"
+                                                            title="Изменить">
+                                                        <i class="bi bi-pencil"></i> Изменить
+                                                    </button>
+                                                </AuthorizeView>
+                                                <AuthorizeView Roles="Admin" Context="deleteContext">
+                                                    <button class="btn btn-delete" 
+                                                            @onclick="@(() => DeleteContactPerson(currentPersonId))"
+                                                            title="Удалить">
+                                                        <i class="bi bi-trash"></i> Удалить
+                                                    </button>
+                                                </AuthorizeView>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-person-rolodex"></i>
+                        <h3>Нет контактных лиц</h3>
+                        <p class="text-muted">Добавьте контактные лица для начала работы</p>
+                        <AuthorizeView Roles="Admin,Manager" Context="innerContext">
+                            <button class="btn btn-primary" @onclick="CreateContactPerson">
+                                <i class="bi bi-plus-circle"></i> Добавить контакт
+                            </button>
+                        </AuthorizeView>
+                    </div>
+                }
             }
         </div>
     </Authorized>
@@ -94,16 +139,182 @@
 </AuthorizeView>
 
 <style>
-    .list-container {
-        padding: 20px;
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
     }
-    .hover-card {
-        transition: transform 0.2s, box-shadow 0.2s;
+
+    .loading-container, .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    /* Таблица */
+    .table-wrapper {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+        overflow-x: auto;
+    }
+
+    .contact-persons-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .contact-persons-table thead {
+        background: #f8f9fa;
+    }
+
+    .contact-persons-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .contact-persons-table tbody tr {
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s;
+    }
+
+    .contact-persons-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .contact-persons-table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .contact-persons-table td {
+        padding: 18px 15px;
+        color: #495057;
+        vertical-align: middle;
+    }
+
+    .person-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .avatar-small {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .avatar-small i {
+        font-size: 1.2rem;
+        color: white;
+    }
+
+    .email-link, .phone-link {
+        color: #495057;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: color 0.2s;
+    }
+
+    .email-link:hover, .phone-link:hover {
+        color: #667eea;
+        text-decoration: underline;
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background: #e7f3ff;
+        color: #0066cc;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .table-actions .btn {
+        padding: 6px 12px;
         border: none;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
     }
-    .hover-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+
+    .table-actions .btn-edit {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .table-actions .btn-edit:hover {
+        background: #ffeaa7;
+        transform: translateY(-1px);
+    }
+
+    .table-actions .btn-delete {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .table-actions .btn-delete:hover {
+        background: #f5c2c7;
+        transform: translateY(-1px);
+    }
+
+    @@media (max-width: 768px) {
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .table-actions {
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .table-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
 
@@ -116,30 +327,31 @@
     {
         if (firstRender)
         {
-            await LoadData();
-        }
-    }
-
-    private async Task LoadData()
-    {
-        try
-        {
-            isLoading = true;
-            errorMessage = string.Empty;
-            StateHasChanged();
-
+            await Task.Delay(100);
             var token = await TokenStorage.GetTokenAsync();
-            if (string.IsNullOrEmpty(token))
-            {
-                 await Task.Delay(200);
-                 token = await TokenStorage.GetTokenAsync();
-            }
-
+            
             if (!string.IsNullOrEmpty(token))
             {
                 ContactPersonService.SetToken(token);
-                contactPersons = await ContactPersonService.GetAllAsync();
+                await LoadContactPersons();
             }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadContactPersons()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            contactPersons = await ContactPersonService.GetAllAsync();
         }
         catch (Exception ex)
         {
@@ -148,37 +360,62 @@
         finally
         {
             isLoading = false;
-            StateHasChanged();
         }
+    }
+
+    private void CreateContactPerson()
+    {
+        Navigation.NavigateTo("/contactpersons/create");
+    }
+
+    private void EditContactPerson(Guid id)
+    {
+        Navigation.NavigateTo($"/contactpersons/edit/{id}");
     }
 
     private async Task DeleteContactPerson(Guid id)
     {
-        if (!await IT_outCRM.Blazor.Services.JsInterop.Confirm(JSRuntime, "Вы уверены, что хотите удалить этот контакт?"))
-            return;
-
-        try
+        if (await JS.InvokeAsync<bool>("confirm", "Вы уверены?"))
         {
-            var token = await TokenStorage.GetTokenAsync();
-            if (!string.IsNullOrEmpty(token))
+            try
             {
-                ContactPersonService.SetToken(token);
-                var success = await ContactPersonService.DeleteAsync(id);
-                if (success)
+                var token = await TokenStorage.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
                 {
-                    await LoadData();
+                    ContactPersonService.SetToken(token);
+                }
+
+                if (await ContactPersonService.DeleteAsync(id))
+                {
+                    await LoadContactPersons();
                 }
                 else
                 {
-                    errorMessage = "Не удалось удалить контакт. Возможно, он используется в других записях.";
+                    errorMessage = "Ошибка при удалении";
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Ошибка удаления: {ex.Message}";
+            catch (Exception ex)
+            {
+                errorMessage = $"Ошибка: {ex.Message}";
+            }
         }
     }
 
-    [Inject] IJSRuntime JSRuntime { get; set; } = default!;
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "?";
+        
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        }
+        
+        if (name.Length >= 2)
+        {
+            return name.Substring(0, 2).ToUpper();
+        }
+        
+        return name.ToUpper();
+    }
 }

@@ -28,6 +28,7 @@ namespace IT_outCRM.Infrastructure
             services.AddScoped<IExecutorRepository, ExecutorRepository>();
             services.AddScoped<IContactPersonRepository, ContactPersonRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IServiceRepository, ServiceRepository>();
 
             return services;
         }

@@ -52,14 +52,23 @@ namespace IT_outCRM.Blazor.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/executors", model);
+                // Конвертируем модель в DTO для бэкенда
+                var createDto = new
+                {
+                    AccountId = model.AccountId,
+                    CompanyId = model.CompanyId,
+                    CompletedOrders = model.CompletedOrders
+                };
+                
+                var response = await _httpClient.PostAsJsonAsync("api/executors", createDto);
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<ExecutorModel>();
                 }
                 else 
                 {
-                    Console.WriteLine($"[ExecutorService] Create failed: {response.StatusCode}");
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[ExecutorService] Create failed: {response.StatusCode} - {errorContent}");
                 }
                 return null;
             }
@@ -74,17 +83,32 @@ namespace IT_outCRM.Blazor.Services
         {
              try
             {
-                var response = await _httpClient.PutAsJsonAsync($"api/executors/{model.Id}", model);
+                // Конвертируем модель в DTO для бэкенда
+                var updateDto = new
+                {
+                    Id = model.Id,
+                    AccountId = model.AccountId,
+                    CompanyId = model.CompanyId,
+                    CompletedOrders = model.CompletedOrders
+                };
+                
+                var response = await _httpClient.PutAsJsonAsync($"api/executors/{model.Id}", updateDto);
                 if (response.IsSuccessStatusCode)
                 {
                      if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
                         return model;
                     return await response.Content.ReadFromJsonAsync<ExecutorModel>();
                 }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[ExecutorService] Update failed: {response.StatusCode} - {errorContent}");
+                }
                 return null;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[ExecutorService] Error updating executor: {ex.Message}");
                 return null;
             }
         }

@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inject IExecutorService ExecutorService
 @inject IAccountService AccountService
+@inject ICompanyService CompanyService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
@@ -57,7 +58,7 @@
                             {
                                 <InputSelect id="account" class="form-select" @bind-Value="executor!.AccountId">
                                     <option value="@Guid.Empty">-- Выберите аккаунт --</option>
-                                    @foreach (var account in accounts)
+                                    @foreach (var account in uniqueAccounts)
                                     {
                                         <option value="@account.Id">@account.CompanyName</option>
                                     }
@@ -73,17 +74,30 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="accountName" class="form-label">Имя исполнителя <span class="text-danger">*</span></label>
-                            <InputText id="accountName" class="form-control" @bind-Value="executor!.AccountName" 
-                                      placeholder="Иванов Иван" />
-                            <ValidationMessage For="@(() => executor!.AccountName)" class="text-danger" />
+                            <label for="company" class="form-label">Компания <span class="text-danger">*</span></label>
+                            @if (companies.Any())
+                            {
+                                <InputSelect id="company" class="form-select" @bind-Value="executor!.CompanyId">
+                                    <option value="@Guid.Empty">-- Выберите компанию --</option>
+                                    @foreach (var company in companies)
+                                    {
+                                        <option value="@company.Id">@company.Name</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => executor!.CompanyId)" class="text-danger" />
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> Нет доступных компаний. 
+                                </div>
+                            }
                         </div>
 
                         <div class="mb-3">
-                            <label for="specialization" class="form-label">Специализация <span class="text-danger">*</span></label>
-                            <InputText id="specialization" class="form-control" @bind-Value="executor!.Specialization" 
-                                      placeholder="Например: Веб-разработчик, Дизайнер, SMM-специалист..." />
-                            <ValidationMessage For="@(() => executor!.Specialization)" class="text-danger" />
+                            <label class="form-label">Имя исполнителя</label>
+                            <div class="form-control-plaintext">@(string.IsNullOrEmpty(executor!.AccountName) ? "Не указано" : executor.AccountName)</div>
+                            <small class="form-text text-muted">Имя берется из аккаунта и не может быть изменено здесь</small>
                         </div>
 
                         <div class="form-actions">
@@ -170,9 +184,15 @@
     private ExecutorModel? executor { get; set; }
 
     private List<AccountModel> accounts = new();
+    private List<CompanyModel> companies = new();
     private string errorMessage = string.Empty;
     private bool isSubmitting = false;
     private bool isLoading = true;
+
+    private IEnumerable<AccountModel> uniqueAccounts => accounts
+        .GroupBy(a => a.CompanyName)
+        .Select(g => g.First())
+        .OrderBy(a => a.CompanyName);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -185,6 +205,7 @@
             {
                 ExecutorService.SetToken(token);
                 AccountService.SetToken(token);
+                CompanyService.SetToken(token);
                 await LoadData();
             }
             else
@@ -202,16 +223,14 @@
         try
         {
             var accountsTask = AccountService.GetAllAsync();
+            var companiesTask = CompanyService.GetAllAsync();
             var executorTask = ExecutorService.GetByIdAsync(Id);
 
-            await Task.WhenAll(accountsTask, executorTask);
+            await Task.WhenAll(accountsTask, companiesTask, executorTask);
 
             accounts = await accountsTask;
-            
-            if (executor == null)
-            {
-                executor = await executorTask;
-            }
+            companies = await companiesTask;
+            executor = await executorTask;
         }
         catch (Exception ex)
         {

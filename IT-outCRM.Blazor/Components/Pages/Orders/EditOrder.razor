@@ -111,7 +111,7 @@
                                 <option value="">-- Не назначен --</option>
                                 @foreach (var executor in executors)
                                 {
-                                    <option value="@executor.Id">@executor.AccountName (@executor.Specialization)</option>
+                                    <option value="@executor.Id">@executor.AccountName (@executor.CompanyName)</option>
                                 }
                             </InputSelect>
                             <ValidationMessage For="@(() => order!.ExecutorId)" class="text-danger" />

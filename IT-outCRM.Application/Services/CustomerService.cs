@@ -60,6 +60,15 @@ namespace IT_outCRM.Application.Services
         }
 
         /// <summary>
+        /// Переопределяем GetAllAsync для загрузки связанных сущностей
+        /// </summary>
+        public override async Task<IEnumerable<CustomerDto>> GetAllAsync()
+        {
+            var customers = await _customerRepository.GetAllAsync();
+            return _mapper.Map<IEnumerable<CustomerDto>>(customers);
+        }
+
+        /// <summary>
         /// Получить клиентов по компании (специфичный метод для Customer)
         /// </summary>
         public async Task<IEnumerable<CustomerDto>> GetCustomersByCompanyAsync(Guid companyId)

@@ -1,162 +1,303 @@
 ﻿@using IT_outCRM.Blazor.Services
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
 @implements IDisposable
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">IT-outCRM</a>
-    </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
+<div class="sidebar-overlay @(isMobileMenuOpen ? "active" : "")" @onclick="CloseMobileMenu"></div>
+<div class="sidebar premium-sidebar @(isCollapsed ? "collapsed" : "") @(isMobileMenuOpen ? "mobile-open" : "")" style="width: @(sidebarWidth)px;" id="sidebar">
+    <div class="premium-sidebar-background"></div>
+    <div class="premium-sidebar-pattern"></div>
+    <div class="premium-sidebar-resize-handle"></div>
+    <div class="premium-sidebar-content">
+        <div class="premium-sidebar-header">
+            <NavLink href="/" class="premium-sidebar-brand" Match="NavLinkMatch.All">
+                <h1 class="premium-sidebar-title">IT-outCRM</h1>
+            </NavLink>
+            <button class="premium-sidebar-toggle mobile-burger-toggle" @onclick="ToggleSidebar" title="@(isCollapsed ? "Развернуть" : "Свернуть")">
+                <i class="bi @(GetToggleIcon())"></i>
+            </button>
+        </div>
+        <div class="premium-sidebar-divider"></div>
+        <nav class="premium-sidebar-nav flex-column">
         <AuthorizeView>
             <Authorized>
                 @* Общие пункты для всех авторизованных пользователей *@
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="dashboard">
-                        <span class="bi bi-speedometer2" aria-hidden="true"></span> Dashboard
-                    </NavLink>
-                </div>
+                <NavLink class="nav-link premium-nav-link" href="dashboard" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                    <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+                </NavLink>
 
                 @* Для исполнителей - Заказы, Мои заказы и Мои услуги *@
                 @if (context.User.IsInRole("Executor"))
                 {
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="orders">
-                            <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Заказы
-                        </NavLink>
-                    </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="executor/my-orders">
-                            <span class="bi bi-list-check" aria-hidden="true"></span> Мои заказы
-                        </NavLink>
-                    </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="my-services">
-                            <span class="bi bi-briefcase-fill" aria-hidden="true"></span> Мои услуги
-                        </NavLink>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="orders" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-box-seam-fill"></i> <span>Заказы</span>
+                    </NavLink>
+                    <NavLink class="nav-link premium-nav-link" href="executor/my-orders" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-list-check"></i> <span>Мои заказы</span>
+                    </NavLink>
+                    <NavLink class="nav-link premium-nav-link" href="my-services" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-briefcase-fill"></i> <span>Мои услуги</span>
+                    </NavLink>
                 }
 
                 @* Для клиентов - Мои заказы *@
                 @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Manager") && !context.User.IsInRole("Executor"))
                 {
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="my-orders">
-                            <span class="bi bi-box-seam" aria-hidden="true"></span> Мои заказы
-                        </NavLink>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="my-orders" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-box-seam"></i> <span>Мои заказы</span>
+                    </NavLink>
                 }
 
                 @* Для админов и менеджеров - полный доступ *@
                 @if (context.User.IsInRole("Admin") || context.User.IsInRole("Manager"))
                 {
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="orders">
-                            <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Все заказы
-                        </NavLink>
+                    <NavLink class="nav-link premium-nav-link" href="orders" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-box-seam-fill"></i> <span>Все заказы</span>
+                    </NavLink>
+
+                    <div class="premium-sidebar-divider"></div>
+
+                    <div class="premium-sidebar-section-label">
+                        <i class="bi bi-star-fill"></i> <span>СПРАВОЧНИКИ</span>
                     </div>
 
-                    <hr class="my-2" />
+                    <NavLink class="nav-link premium-nav-link" href="customers" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-people-fill"></i> <span>Клиенты</span>
+                    </NavLink>
 
-                    <div class="nav-item px-3">
-                        <small class="text-accent-sidebar px-3">СПРАВОЧНИКИ</small>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="executors" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-person-gear"></i> <span>Исполнители</span>
+                    </NavLink>
 
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="companies">
-                            <span class="bi bi-building" aria-hidden="true"></span> Компании
-                        </NavLink>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="companies" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-building"></i> <span>Компании</span>
+                    </NavLink>
 
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="contactpersons">
-                            <span class="bi bi-person-rolodex" aria-hidden="true"></span> Контактные лица
-                        </NavLink>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="contactpersons" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-person-rolodex"></i> <span>Контактные лица</span>
+                    </NavLink>
 
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="accounts">
-                            <span class="bi bi-person-badge" aria-hidden="true"></span> Аккаунты
-                        </NavLink>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="accounts" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-person-badge"></i> <span>Аккаунты</span>
+                    </NavLink>
 
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="order-statuses">
-                            <span class="bi bi-card-checklist" aria-hidden="true"></span> Статусы заказов
-                        </NavLink>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="order-statuses" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-card-checklist"></i> <span>Статусы заказов</span>
+                    </NavLink>
+
+                    <NavLink class="nav-link premium-nav-link" href="all-services" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-briefcase"></i> <span>Все услуги</span>
+                    </NavLink>
                 }
 
                 @* Только для админов *@
                 @if (context.User.IsInRole("Admin"))
                 {
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="reports" Match="NavLinkMatch.All">
-                            <span class="bi bi-graph-up" aria-hidden="true"></span> Отчеты
-                        </NavLink>
-                    </div>
+                    <NavLink class="nav-link premium-nav-link" href="reports" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                        <i class="bi bi-graph-up"></i> <span>Отчеты</span>
+                    </NavLink>
                 }
 
-                <hr class="my-2" />
+                <div class="premium-sidebar-divider"></div>
 
                 @* Профиль пользователя *@
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="profile">
-                        <span class="bi bi-person-circle" aria-hidden="true"></span> Профиль
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <div class="nav-link text-muted user-info">
-                        <small>
-                            <i class="bi bi-shield-check"></i> 
-                            @context.User.Identity?.Name 
-                            (@GetUserRole(context.User))
-                        </small>
-                    </div>
-                </div>
-
-                <div class="nav-item px-3">
-                    <a class="nav-link logout-link" @onclick="HandleLogout" style="cursor: pointer;">
-                        <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Выйти
-                    </a>
-                </div>
+                <NavLink class="nav-link premium-nav-link" href="profile" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                    <i class="bi bi-person-circle"></i> <span>Профиль</span>
+                </NavLink>
             </Authorized>
             <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="login">
-                        <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Войти
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="register">
-                        <span class="bi bi-person-plus-fill" aria-hidden="true"></span> Регистрация
-                    </NavLink>
-                </div>
+                <NavLink class="nav-link premium-nav-link" href="login" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                    <i class="bi bi-box-arrow-in-right"></i> <span>Войти</span>
+                </NavLink>
+                <NavLink class="nav-link premium-nav-link" href="register" Match="NavLinkMatch.Prefix" @onclick="HandleNavLinkClick">
+                    <i class="bi bi-person-plus-fill"></i> <span>Регистрация</span>
+                </NavLink>
             </NotAuthorized>
         </AuthorizeView>
-    </nav>
+        </nav>
+        
+        @* Footer с информацией о пользователе и кнопкой выхода *@
+        <div class="premium-sidebar-footer">
+            <AuthorizeView>
+                <Authorized>
+                    <div class="premium-user-info">
+                        <div class="premium-user-icon">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <div class="premium-user-details">
+                            <div class="premium-user-name">@context.User.Identity?.Name</div>
+                            <div class="premium-user-role">@GetUserRole(context.User)</div>
+                        </div>
+                    </div>
+
+                    <a class="nav-link premium-nav-link premium-logout-link" @onclick="HandleLogoutClick">
+                        <i class="bi bi-box-arrow-right"></i> <span>Выйти</span>
+                    </a>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
 </div>
 
 @code {
+    private bool isCollapsed = false;
+    private bool isMobileMenuOpen = false;
+    private double sidebarWidth = 250;
+
     protected override void OnInitialized()
     {
         // Подписываемся на изменения состояния аутентификации
         AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        
+        // Загружаем сохраненную ширину из localStorage
+        LoadSidebarWidth();
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Обновляем ширину из localStorage после рендера
+            await UpdateSidebarWidthFromStorage();
+            
+            // Инициализируем обработчики для мобильных устройств
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.addEventListener('resize', function() {
+                    DotNet.invokeMethodAsync('IT-outCRM.Blazor', 'HandleResize');
+                });
+            ");
+        }
+    }
+
+    private async Task UpdateSidebarWidthFromStorage()
+    {
+        try
+        {
+            var widthStr = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "sidebarWidth");
+            if (!string.IsNullOrEmpty(widthStr))
+            {
+                var widthValue = widthStr.Replace("px", "").Trim();
+                if (double.TryParse(widthValue, out var parsedWidth) && parsedWidth >= 200 && parsedWidth <= 500)
+                {
+                    sidebarWidth = parsedWidth;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch
+        {
+            // Игнорируем ошибки
+        }
+    }
+
+    private async void LoadSidebarWidth()
+    {
+        await UpdateSidebarWidthFromStorage();
+    }
+
+    private async void ToggleSidebar()
+    {
+        // На мобильных устройствах переключаем мобильное меню
+        if (await IsMobileDevice())
+        {
+            isMobileMenuOpen = !isMobileMenuOpen;
+        }
+        else
+        {
+            isCollapsed = !isCollapsed;
+            if (isCollapsed)
+            {
+                sidebarWidth = 70;
+            }
+            else
+            {
+                await UpdateSidebarWidthFromStorage();
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task<bool> IsMobileDevice()
+    {
+        try
+        {
+            var width = await JSRuntime.InvokeAsync<int>("eval", "window.innerWidth");
+            return width <= 768;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private string GetToggleIcon()
+    {
+        if (isMobileMenuOpen)
+            return "bi-x-lg";
+        if (isCollapsed)
+            return "bi-list";
+        return "bi-x-lg";
+    }
+
+    private void CloseMobileMenu()
+    {
+        isMobileMenuOpen = false;
+        StateHasChanged();
+    }
+
+    public event Action? OnMobileMenuStateChanged;
+
+    private async Task HandleNavLinkClick()
+    {
+        if (await IsMobileDevice())
+        {
+            isMobileMenuOpen = false;
+            OnMobileMenuStateChanged?.Invoke();
+            StateHasChanged();
+        }
+    }
+
+    public void OpenMobileMenu()
+    {
+        isMobileMenuOpen = true;
+        OnMobileMenuStateChanged?.Invoke();
+        StateHasChanged();
+    }
+    
+    public bool IsMobileMenuOpen => isMobileMenuOpen;
+
+    public void CloseMobileMenuPublic()
+    {
+        isMobileMenuOpen = false;
+        OnMobileMenuStateChanged?.Invoke();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public static void HandleResize()
+    {
+        // Обработчик изменения размера окна
+    }
+
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
         // Принудительно обновляем UI при изменении состояния
         InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleLogoutClick()
+    {
+        if (await IsMobileDevice())
+        {
+            isMobileMenuOpen = false;
+        }
+        await HandleLogout();
     }
 
     private async Task HandleLogout()
@@ -199,3 +340,540 @@
         AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
 }
+
+<style>
+    :root {
+        --premium-black: #0a0e13;
+        --premium-dark: #1a1f2e;
+        --premium-blue: #1e3a5f;
+        --premium-silver: #8b8b8b;
+        --premium-silver-light: #b0b0b0;
+        --premium-silver-dark: #6b6b6b;
+        --premium-white: #ffffff;
+    }
+
+    /* Premium Sidebar */
+    .premium-sidebar {
+        background: linear-gradient(135deg, var(--premium-black) 0%, var(--premium-dark) 50%, var(--premium-blue) 100%);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+        min-width: 200px;
+        max-width: 500px;
+        transition: width 0.3s ease;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* На десктопе sidebar всегда виден */
+    @@media (min-width: 769px) {
+        .premium-sidebar {
+            position: relative !important;
+            transform: none !important;
+            opacity: 1 !important;
+            pointer-events: all !important;
+        }
+    }
+
+    .premium-sidebar.collapsed {
+        width: 70px !important;
+        min-width: 70px;
+    }
+
+    .premium-sidebar.collapsed .premium-sidebar-title {
+        font-size: 0;
+        opacity: 0;
+    }
+
+    .premium-sidebar.collapsed .premium-nav-link span:not(.bi),
+    .premium-sidebar.collapsed .premium-sidebar-section-label,
+    .premium-sidebar.collapsed .premium-user-info,
+    .premium-sidebar.collapsed .premium-sidebar-divider,
+    .premium-sidebar.collapsed .premium-sidebar-footer {
+        display: none;
+    }
+
+    .premium-sidebar.collapsed .premium-nav-link {
+        justify-content: center;
+        padding: 0.9rem 0 !important;
+    }
+
+    .premium-sidebar.collapsed .premium-sidebar-header {
+        justify-content: center;
+        padding: 1.5rem 0.5rem 1rem;
+    }
+
+    .premium-sidebar-background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 50%, rgba(139, 139, 139, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(30, 58, 95, 0.2) 0%, transparent 50%);
+        opacity: 0.6;
+    }
+
+    .premium-sidebar-pattern {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: 
+            repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(139, 139, 139, 0.03) 35px, rgba(139, 139, 139, 0.03) 70px);
+        opacity: 0.5;
+    }
+
+    .premium-sidebar-content {
+        position: relative;
+        z-index: 2;
+        padding: 1.5rem 0;
+        height: 100%;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Premium Sidebar Header */
+    .premium-sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.5rem 1.5rem 1rem;
+        gap: 1rem;
+    }
+
+    /* Premium Sidebar Brand */
+    .premium-sidebar-brand {
+        flex: 1;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .premium-sidebar-brand:hover {
+        transform: scale(1.05);
+    }
+
+    .premium-sidebar-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--premium-white);
+        letter-spacing: -1px;
+        margin: 0;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, var(--premium-white) 0%, var(--premium-silver-light) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        user-select: none;
+        transition: all 0.3s ease;
+    }
+
+    .premium-sidebar-brand:hover .premium-sidebar-title {
+        background: linear-gradient(135deg, var(--premium-silver-light) 0%, var(--premium-white) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* Premium Sidebar Toggle Button */
+    .premium-sidebar-toggle {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        color: var(--premium-white);
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .premium-sidebar-toggle:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: var(--premium-silver);
+        transform: scale(1.1);
+    }
+
+    .premium-sidebar-toggle i {
+        font-size: 1.2rem;
+        transition: transform 0.3s ease;
+    }
+
+    /* Premium Sidebar Resize Handle */
+    .premium-sidebar-resize-handle {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 4px;
+        height: 100%;
+        cursor: col-resize;
+        z-index: 10;
+        background: transparent;
+        transition: background 0.2s ease;
+        user-select: none;
+    }
+
+    .premium-sidebar-resize-handle:hover {
+        background: rgba(139, 139, 139, 0.4);
+        width: 6px;
+    }
+
+    .premium-sidebar-resize-handle:active {
+        background: rgba(139, 139, 139, 0.6);
+        width: 6px;
+    }
+
+    .premium-sidebar.collapsed .premium-sidebar-resize-handle {
+        display: none;
+    }
+
+    /* Premium Sidebar Divider */
+    .premium-sidebar-divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent 0%, rgba(139, 139, 139, 0.3) 50%, transparent 100%);
+        margin: 0.75rem 1.5rem;
+    }
+
+    /* Premium Sidebar Navigation */
+    .premium-sidebar-nav {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0.5rem 0;
+        min-height: 0;
+    }
+
+    /* Premium Sidebar Footer */
+    .premium-sidebar-footer {
+        margin-top: auto;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Скрываем скроллбар */
+    .premium-sidebar-nav::-webkit-scrollbar {
+        display: none;
+        width: 0;
+    }
+
+    .premium-sidebar-nav {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    /* Premium Nav Links */
+    .premium-nav-link {
+        color: rgba(255, 255, 255, 0.8) !important;
+        padding: 0.9rem 1.5rem !important;
+        font-weight: 500;
+        font-size: 0.95rem;
+        letter-spacing: 0.3px;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-left: 3px solid transparent;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-decoration: none;
+    }
+
+    .premium-nav-link span {
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .premium-nav-link i {
+        font-size: 1.2rem;
+        width: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+
+    .premium-nav-link:hover {
+        color: var(--premium-white) !important;
+        background: rgba(255, 255, 255, 0.08);
+        border-left-color: var(--premium-silver);
+        transform: translateX(4px);
+    }
+
+    .premium-nav-link:hover i {
+        color: var(--premium-silver-light);
+        transform: scale(1.1);
+    }
+
+    .premium-nav-link.active {
+        color: var(--premium-white) !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-left-color: var(--premium-silver-light);
+        box-shadow: inset 4px 0 10px rgba(139, 139, 139, 0.2);
+    }
+
+    .premium-nav-link.active i {
+        color: var(--premium-silver-light);
+    }
+
+    /* Premium Section Label */
+    .premium-sidebar-section-label {
+        padding: 0.75rem 1.5rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .premium-sidebar-section-label span {
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
+    }
+
+    .premium-sidebar-section-label i {
+        font-size: 0.7rem;
+        color: var(--premium-silver);
+    }
+
+    /* Premium User Info */
+    .premium-user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        margin: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .premium-user-info:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: var(--premium-silver);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .premium-user-icon {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, var(--premium-silver) 0%, var(--premium-silver-light) 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 139, 139, 0.3);
+    }
+
+    .premium-user-icon i {
+        font-size: 1.4rem;
+        color: var(--premium-black);
+    }
+
+    .premium-user-details {
+        flex: 1;
+    }
+
+    .premium-user-name {
+        font-weight: 600;
+        color: var(--premium-white);
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
+    }
+
+    .premium-user-role {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 500;
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
+    }
+
+    /* Premium Logout Link */
+    .premium-logout-link {
+        margin-top: 0.5rem;
+        padding-top: 0.5rem !important;
+    }
+
+    .premium-logout-link:hover {
+        background: rgba(196, 48, 43, 0.2) !important;
+        border-left-color: #c0392b;
+    }
+
+    .premium-logout-link:hover i {
+        color: #c0392b !important;
+    }
+
+    /* Sidebar Overlay для мобильных */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 998;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        backdrop-filter: blur(2px);
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+        opacity: 1;
+    }
+
+    @@media (min-width: 769px) {
+        .sidebar-overlay {
+            display: none !important;
+        }
+    }
+
+    /* Responsive - Мобильные устройства */
+    @@media (max-width: 768px) {
+        /* На мобильных скрываем sidebar по умолчанию, показываем только при открытии */
+        .premium-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: 0;
+            width: 280px !important;
+            max-width: 85vw;
+            height: 100vh;
+            z-index: 999;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        .premium-sidebar.mobile-open {
+            transform: translateX(0);
+        }
+
+        .premium-sidebar:not(.mobile-open) {
+            transform: translateX(-100%);
+        }
+
+        /* Скрываем кнопку бургер в sidebar на мобильных */
+        .mobile-burger-toggle {
+            display: none;
+        }
+
+        .premium-sidebar-content {
+            padding: 1rem 0;
+        }
+
+        .premium-sidebar.collapsed {
+            width: 280px !important;
+            min-width: 280px;
+        }
+
+        .premium-sidebar.collapsed .premium-nav-link span:not(.bi),
+        .premium-sidebar.collapsed .premium-sidebar-section-label,
+        .premium-sidebar.collapsed .premium-user-info,
+        .premium-sidebar.collapsed .premium-sidebar-divider,
+        .premium-sidebar.collapsed .premium-sidebar-footer {
+            display: block !important;
+        }
+
+        .premium-sidebar.collapsed .premium-nav-link {
+            justify-content: flex-start;
+            padding: 0.9rem 1.5rem !important;
+        }
+
+        .premium-sidebar.collapsed .premium-sidebar-header {
+            justify-content: space-between;
+            padding: 1.5rem 1.5rem 1rem;
+        }
+
+        .premium-sidebar-resize-handle {
+            display: none;
+        }
+
+        .premium-sidebar-toggle {
+            display: flex !important;
+            width: 40px;
+            height: 40px;
+        }
+
+        .premium-sidebar-toggle i {
+            font-size: 1.3rem;
+        }
+
+        .premium-sidebar-title {
+            font-size: 1.3rem;
+        }
+
+        .premium-sidebar-header {
+            padding: 1rem 1.5rem;
+        }
+
+        .premium-nav-link {
+            padding: 0.9rem 1.5rem !important;
+            font-size: 0.95rem;
+        }
+
+        .premium-nav-link span {
+            font-size: 0.95rem;
+        }
+
+        .premium-user-info {
+            margin: 0.5rem 1rem;
+            padding: 1rem;
+        }
+
+        .premium-user-name {
+            font-size: 0.9rem;
+        }
+
+        .premium-user-role {
+            font-size: 0.75rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .premium-sidebar {
+            width: 100vw !important;
+            max-width: 100vw;
+        }
+
+        .premium-sidebar-title {
+            font-size: 1.2rem;
+        }
+
+        .premium-nav-link {
+            padding: 0.85rem 1.25rem !important;
+            font-size: 0.9rem;
+        }
+
+        .premium-user-info {
+            margin: 0.5rem;
+            padding: 0.9rem;
+        }
+    }
+</style>

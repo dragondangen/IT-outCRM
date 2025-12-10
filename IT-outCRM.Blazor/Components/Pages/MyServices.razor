@@ -3,15 +3,20 @@
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@attribute [Authorize]
 @inject NavigationManager Navigation
-@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JS
-@rendermode InteractiveServer
+@inject IServiceService ServiceService
+@inject ITokenStorage TokenStorage
+@inject IExecutorService ExecutorService
+@inject IAuthService AuthService
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Мои услуги - IT-outCRM</PageTitle>
 
-<div class="my-services-container">
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <div class="my-services-container">
     <div class="page-header">
         <div>
             <h2>💼 Мои услуги</h2>
@@ -49,7 +54,7 @@
     }
     else
     {
-        @if (services.Any())
+        @if (filteredServices != null && filteredServices.Any())
         {
             <div class="services-grid">
                 @foreach (var service in filteredServices)
@@ -113,10 +118,9 @@
             </div>
         }
     }
-</div>
 
-<!-- Модальное окно для создания/редактирования услуги -->
-@if (showModal)
+    <!-- Модальное окно для создания/редактирования услуги -->
+    @if (showModal)
 {
     <div class="modal-backdrop" @onclick="CloseModal"></div>
     <div class="modal show d-block" tabindex="-1">
@@ -164,6 +168,8 @@
                             <label class="form-check-label">Услуга активна (видна клиентам)</label>
                         </div>
 
+                        <input type="hidden" value="@currentService.ExecutorId" />
+
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" @onclick="CloseModal">Отмена</button>
                             <button type="submit" class="btn btn-primary">
@@ -175,7 +181,13 @@
             </div>
         </div>
     </div>
-}
+    }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
 
 <style>
     .my-services-container {
@@ -303,39 +315,184 @@
 @code {
     private List<ServiceModel> services = new();
     private List<ServiceModel> filteredServices = new();
-    private bool isLoading = false;
+    private bool isLoading = true;
     private string errorMessage = string.Empty;
     private string successMessage = string.Empty;
     private bool showModal = false;
     private ServiceModel? editingService = null;
     private ServiceModel currentService = new();
+    private Guid? currentExecutorId = null;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadServices();
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                ServiceService.SetToken(token);
+                ExecutorService.SetToken(token);
+                AuthService.SetToken(token);
+                
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                
+                if (user.IsInRole("Executor"))
+                {
+                    await LoadCurrentExecutorId();
+                    
+                    // Загружаем услуги только если нашли исполнителя
+                    if (currentExecutorId.HasValue)
+                    {
+                        await LoadServices();
+                    }
+                    else
+                    {
+                        isLoading = false;
+                    }
+                }
+                else
+                {
+                    errorMessage = "У вас нет прав для просмотра этой страницы. Требуется роль 'Executor'.";
+                    isLoading = false;
+                }
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCurrentExecutorId()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            
+            if (!user.IsInRole("Executor"))
+            {
+                return;
+            }
+            
+            Guid? currentUserId = null;
+            
+            // Пробуем получить AccountId из claims (NameIdentifier)
+            var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var userId))
+            {
+                currentUserId = userId;
+                Console.WriteLine($"[MyServices] Got UserId from claims: {currentUserId}");
+            }
+            else
+            {
+                // Если не получили из claims, пробуем через API
+                var token = await TokenStorage.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    AuthService.SetToken(token);
+                }
+                
+                var currentUser = await AuthService.GetCurrentUserAsync();
+                if (currentUser != null)
+                {
+                    currentUserId = currentUser.Id;
+                    Console.WriteLine($"[MyServices] Got UserId from API: {currentUserId}");
+                }
+                else
+                {
+                    Console.WriteLine($"[MyServices] Current user not found via API");
+                }
+            }
+            
+            if (!currentUserId.HasValue)
+            {
+                errorMessage = "Не удалось определить идентификатор пользователя. Проверьте авторизацию.";
+                return;
+            }
+            
+            // Получаем все исполнители и ищем по AccountId
+            var executors = await ExecutorService.GetAllAsync();
+            
+            if (executors == null || !executors.Any())
+            {
+                Console.WriteLine($"[MyServices] No executors found");
+                errorMessage = "Исполнитель не найден. Обратитесь к администратору.";
+                return;
+            }
+            
+            // Ищем исполнителя по AccountId текущего пользователя
+            var executor = executors.FirstOrDefault(e => e.AccountId == currentUserId.Value);
+            
+            if (executor == null)
+            {
+                // Если не нашли по AccountId, используем первый (для совместимости)
+                executor = executors.FirstOrDefault();
+                Console.WriteLine($"[MyServices] Executor not found by AccountId {currentUserId.Value}, using first available");
+            }
+            
+            if (executor != null)
+            {
+                currentExecutorId = executor.Id;
+                Console.WriteLine($"[MyServices] Found executor ID: {currentExecutorId}");
+            }
+            else
+            {
+                errorMessage = "Исполнитель не найден. Обратитесь к администратору.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MyServices] Error loading executor ID: {ex.Message}");
+            Console.WriteLine($"[MyServices] StackTrace: {ex.StackTrace}");
+            errorMessage = $"Ошибка при загрузке данных исполнителя: {ex.Message}";
+        }
     }
 
     private async Task LoadServices()
     {
+        if (!currentExecutorId.HasValue)
+        {
+            errorMessage = "Не удалось определить исполнителя. Пожалуйста, обновите страницу.";
+            isLoading = false;
+            services = new List<ServiceModel>();
+            filteredServices = new List<ServiceModel>();
+            return;
+        }
+
         isLoading = true;
         errorMessage = string.Empty;
 
         try
         {
-            // Пока используем mock данные, потом подключим API
-            await Task.Delay(500); // Симуляция загрузки
+            services = await ServiceService.GetServicesByExecutorAsync(currentExecutorId.Value);
             
-            // Mock данные для примера
-            services = new List<ServiceModel>
+            if (services == null)
             {
-                // Можно добавить примеры или оставить пустым
-            };
+                services = new List<ServiceModel>();
+            }
             
-            filteredServices = services;
+            filteredServices = services.ToList();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"[MyServices] UnauthorizedAccessException: {ex.Message}");
+            services = new List<ServiceModel>();
+            filteredServices = new List<ServiceModel>();
         }
         catch (Exception ex)
         {
             errorMessage = $"Ошибка загрузки услуг: {ex.Message}";
+            Console.WriteLine($"[MyServices] Exception in LoadServices: {ex.Message}");
+            Console.WriteLine($"[MyServices] StackTrace: {ex.StackTrace}");
+            services = new List<ServiceModel>();
+            filteredServices = new List<ServiceModel>();
         }
         finally
         {
@@ -345,12 +502,19 @@
 
     private void ShowCreateModal()
     {
+        if (!currentExecutorId.HasValue)
+        {
+            errorMessage = "Не удалось определить исполнителя. Пожалуйста, обновите страницу.";
+            return;
+        }
+
         editingService = null;
         currentService = new ServiceModel
         {
             IsActive = true,
             Duration = 1,
-            Price = 0
+            Price = 0,
+            ExecutorId = currentExecutorId.Value
         };
         showModal = true;
     }
@@ -366,7 +530,8 @@
             Price = service.Price,
             Duration = service.Duration,
             Category = service.Category,
-            IsActive = service.IsActive
+            IsActive = service.IsActive,
+            ExecutorId = service.ExecutorId
         };
         showModal = true;
     }
@@ -382,25 +547,59 @@
     {
         try
         {
+            if (!currentExecutorId.HasValue)
+            {
+                errorMessage = "Не удалось определить исполнителя.";
+                return;
+            }
+
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                ServiceService.SetToken(token);
+            }
+
             if (editingService == null)
             {
                 // Добавление новой услуги
-                currentService.Id = Guid.NewGuid();
-                services.Add(currentService);
-                successMessage = "Услуга успешно добавлена";
+                var createModel = new CreateServiceModel
+                {
+                    Name = currentService.Name,
+                    Description = currentService.Description,
+                    Price = currentService.Price,
+                    Duration = currentService.Duration,
+                    Category = currentService.Category,
+                    IsActive = currentService.IsActive,
+                    ExecutorId = currentExecutorId.Value
+                };
+
+                var createdService = await ServiceService.CreateAsync(createModel);
+                if (createdService != null)
+                {
+                    successMessage = "Услуга успешно добавлена";
+                    await LoadServices();
+                }
+                else
+                {
+                    errorMessage = "Ошибка при создании услуги";
+                }
             }
             else
             {
                 // Обновление существующей услуги
-                var index = services.FindIndex(s => s.Id == editingService.Id);
-                if (index >= 0)
+                currentService.ExecutorId = currentExecutorId.Value;
+                var updatedService = await ServiceService.UpdateAsync(currentService);
+                if (updatedService != null)
                 {
-                    services[index] = currentService;
                     successMessage = "Услуга успешно обновлена";
+                    await LoadServices();
+                }
+                else
+                {
+                    errorMessage = "Ошибка при обновлении услуги";
                 }
             }
             
-            filteredServices = services;
             CloseModal();
             StateHasChanged();
         }
@@ -432,13 +631,37 @@
         bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Вы уверены, что хотите удалить услугу '{service.Name}'?");
         if (confirmed)
         {
-            services.Remove(service);
-            filteredServices = services;
-            successMessage = "Услуга успешно удалена";
+            try
+            {
+                var token = await TokenStorage.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    ServiceService.SetToken(token);
+                }
+
+                var success = await ServiceService.DeleteAsync(service.Id);
+                if (success)
+                {
+                    successMessage = "Услуга успешно удалена";
+                    await LoadServices();
+                }
+                else
+                {
+                    errorMessage = "Ошибка при удалении услуги";
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Ошибка при удалении услуги: {ex.Message}";
+            }
             StateHasChanged();
         }
     }
 }
+
+
+
+
 
 
 

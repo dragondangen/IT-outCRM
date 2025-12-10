@@ -18,6 +18,7 @@ namespace IT_outCRM.Infrastructure.Repositories
         public IContactPersonRepository ContactPersons { get; }
         public IUserRepository Users { get; }
         public IOrderStatusRepository OrderStatuses { get; }
+        public IServiceRepository Services { get; }
 
         public UnitOfWork(CrmDbContext context)
         {
@@ -32,6 +33,7 @@ namespace IT_outCRM.Infrastructure.Repositories
             ContactPersons = new ContactPersonRepository(_context);
             Users = new UserRepository(_context);
             OrderStatuses = new OrderStatusRepository(_context);
+            Services = new ServiceRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync()

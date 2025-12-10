@@ -3,17 +3,18 @@
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@attribute [Authorize(Roles = "Executor")]
 @inject IOrderService OrderService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JS
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Мои заказы - IT-outCRM</PageTitle>
 
-<div class="executor-orders-container">
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <div class="executor-orders-container">
     <!-- Заголовок страницы -->
     <div class="page-header">
         <div class="header-content">
@@ -205,7 +206,12 @@
             </div>
         }
     }
-</div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
 
 <style>
     .executor-orders-container {

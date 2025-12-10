@@ -77,6 +77,15 @@ namespace IT_outCRM.Application.Services
         }
 
         /// <summary>
+        /// Переопределяем GetAllAsync для загрузки связанных сущностей
+        /// </summary>
+        public override async Task<IEnumerable<ExecutorDto>> GetAllAsync()
+        {
+            var executors = await _executorRepository.GetAllAsync();
+            return _mapper.Map<IEnumerable<ExecutorDto>>(executors);
+        }
+
+        /// <summary>
         /// Получить топ исполнителей (специфичный метод для Executor)
         /// </summary>
         public async Task<IEnumerable<ExecutorDto>> GetTopExecutorsAsync(int count)

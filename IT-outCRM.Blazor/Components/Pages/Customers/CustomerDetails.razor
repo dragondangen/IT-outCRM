@@ -5,6 +5,7 @@
 @attribute [Authorize]
 @inject ICustomerService CustomerService
 @inject IOrderService OrderService
+@inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -346,6 +347,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var token = await TokenStorage.GetTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            CustomerService.SetToken(token);
+            OrderService.SetToken(token);
+        }
         await LoadCustomer();
         await LoadCustomerOrders();
     }
@@ -355,6 +362,11 @@
         isLoading = true;
         try
         {
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                CustomerService.SetToken(token);
+            }
             customer = await CustomerService.GetByIdAsync(Id);
         }
         catch (Exception ex)

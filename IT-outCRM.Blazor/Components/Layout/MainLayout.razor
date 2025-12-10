@@ -4,38 +4,46 @@
 @inject AuthenticationStateProvider AuthStateProvider
 
 <div class="page">
-    <div class="sidebar @(isSidebarCollapsed ? "collapsed" : "")">
-        <NavMenu />
+    <!-- Overlay для закрытия меню на мобильных -->
+    @if (isMobileMenuOpen)
+    {
+        <div class="mobile-menu-overlay" @onclick="CloseMobileMenu"></div>
+    }
+
+    <div class="sidebar @(isMobileMenuOpen ? "mobile-open" : "")">
+        <NavMenu @ref="navMenu" />
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <div class="d-flex align-items-center w-100">
-                <button class="btn btn-link text-dark p-0 me-3 border-0" @onclick="ToggleSidebar" title="Свернуть/Развернуть меню">
-                    <i class="bi bi-list fs-3" style="color: var(--primary-dark);"></i>
-                </button>
-                
-                <div class="ms-auto">
-                     <!-- Можно добавить сюда уведомления или профиль позже -->
-                </div>
-            </div>
-        </div>
-
-        <article class="content px-4">
-            <ErrorBoundary>
+        <article class="content">
+            <ErrorBoundary @key="@Navigation.Uri">
                 <ChildContent>
                     @Body
                 </ChildContent>
                 <ErrorContent Context="ex">
-                    <div class="alert alert-danger" role="alert">
-                        <h4 class="alert-heading">Произошла ошибка!</h4>
-                        <p>@ex.Message</p>
-                        <hr>
-                        <p class="mb-0">
-                            <button class="btn btn-primary" @onclick="() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true)">
-                                Перезагрузить страницу
-                            </button>
-                        </p>
+                    <div class="container mt-5">
+                        <div class="alert alert-danger" role="alert">
+                            <h4 class="alert-heading">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Произошла ошибка!
+                            </h4>
+                            <p><strong>Сообщение:</strong> @ex.Message</p>
+                            @if (ex.StackTrace != null)
+                            {
+                                <details class="mt-3">
+                                    <summary>Детали ошибки</summary>
+                                    <pre class="mt-2 small">@ex.StackTrace</pre>
+                                </details>
+                            }
+                            <hr>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" @onclick="() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true)">
+                                    <i class="bi bi-arrow-clockwise"></i> Перезагрузить страницу
+                                </button>
+                                <button class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/")'>
+                                    <i class="bi bi-house"></i> На главную
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </ErrorContent>
             </ErrorBoundary>
@@ -47,12 +55,8 @@
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
     
-    private bool isSidebarCollapsed = false;
-
-    private void ToggleSidebar()
-    {
-        isSidebarCollapsed = !isSidebarCollapsed;
-    }
+    private NavMenu? navMenu;
+    private bool isMobileMenuOpen = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -63,6 +67,32 @@
             {
                 customProvider.NotifyAuthenticationStateChanged();
             }
+
+            // Подписываемся на изменения состояния мобильного меню
+            if (navMenu != null)
+            {
+                navMenu.OnMobileMenuStateChanged += UpdateMobileMenuState;
+            }
         }
+    }
+
+    private void UpdateMobileMenuState()
+    {
+        if (navMenu != null)
+        {
+            isMobileMenuOpen = navMenu.IsMobileMenuOpen;
+            StateHasChanged();
+        }
+    }
+
+
+    private void CloseMobileMenu()
+    {
+        isMobileMenuOpen = false;
+        if (navMenu != null)
+        {
+            navMenu.CloseMobileMenuPublic();
+        }
+        StateHasChanged();
     }
 }

@@ -1,0 +1,529 @@
+@page "/all-services"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@inject IServiceService ServiceService
+@inject ITokenStorage TokenStorage
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Все услуги - IT-outCRM</PageTitle>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <div class="all-services-container">
+    <div class="page-header">
+        <div>
+            <h2>💼 Все услуги</h2>
+            <p class="text-muted">Просмотр всех услуг, предлагаемых исполнителями</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+        </div>
+    }
+
+    <!-- Поиск и фильтры -->
+    <div class="filters-card">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" class="form-control" placeholder="Поиск по названию, описанию или категории..." 
+                           @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterServices" />
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @onchange="OnCategoryFilterChanged">
+                    <option value="">Все категории</option>
+                    @foreach (var category in uniqueCategories)
+                    {
+                        <option value="@category">@category</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @onchange="OnStatusFilterChanged">
+                    <option value="">Все статусы</option>
+                    <option value="active">Активные</option>
+                    <option value="inactive">Неактивные</option>
+                </select>
+            </div>
+        </div>
+        <div class="row g-3 mt-2">
+            <div class="col-md-12">
+                <button class="btn btn-outline-secondary" @onclick="ResetFilters">
+                    <i class="bi bi-x-circle"></i> Сбросить фильтры
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3">Загрузка услуг...</p>
+        </div>
+    }
+    else
+    {
+        @if (filteredServices.Any())
+        {
+            <div class="services-grid">
+                @foreach (var service in filteredServices)
+                {
+                    <div class="service-card">
+                        <div class="service-card-header">
+                            <h5>@service.Name</h5>
+                            @if (service.IsActive)
+                            {
+                                <span class="badge bg-success">Активна</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Неактивна</span>
+                            }
+                        </div>
+                        <div class="service-card-body">
+                            <p class="description">@(string.IsNullOrEmpty(service.Description) ? "Нет описания" : (service.Description.Length > 150 ? service.Description.Substring(0, 150) + "..." : service.Description))</p>
+                            <div class="service-info">
+                                <div class="info-item">
+                                    <i class="bi bi-cash"></i>
+                                    <span>@service.Price.ToString("C")</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="bi bi-clock"></i>
+                                    <span>@service.Duration часов</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(service.Category))
+                                {
+                                    <div class="info-item">
+                                        <i class="bi bi-tag"></i>
+                                        <span>@service.Category</span>
+                                    </div>
+                                }
+                                <div class="info-item">
+                                    <i class="bi bi-calendar"></i>
+                                    <span>Создано: @service.CreatedAt.ToString("dd.MM.yyyy")</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="service-card-footer">
+                            <button class="btn btn-sm btn-outline-info" @onclick="() => ViewService(service)">
+                                <i class="bi bi-eye"></i> Просмотр
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-briefcase"></i>
+                <h3>Нет услуг</h3>
+                <p class="text-muted">@(string.IsNullOrEmpty(searchTerm) ? "Исполнители еще не добавили услуги" : "По вашему запросу ничего не найдено")</p>
+                @if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    <button class="btn btn-primary" @onclick="ResetFilters">
+                        <i class="bi bi-x-circle"></i> Сбросить фильтры
+                    </button>
+                }
+            </div>
+        }
+    }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+<!-- Модальное окно для просмотра услуги -->
+@if (showModal && selectedService != null)
+{
+    <div class="modal-backdrop" @onclick="CloseModal"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@selectedService.Name</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="service-details">
+                        <div class="detail-row">
+                            <label>Описание:</label>
+                            <p>@(string.IsNullOrEmpty(selectedService.Description) ? "Нет описания" : selectedService.Description)</p>
+                        </div>
+                        <div class="detail-row">
+                            <label>Цена:</label>
+                            <p class="price-value">@selectedService.Price.ToString("C")</p>
+                        </div>
+                        <div class="detail-row">
+                            <label>Длительность:</label>
+                            <p>@selectedService.Duration часов</p>
+                        </div>
+                        @if (!string.IsNullOrEmpty(selectedService.Category))
+                        {
+                            <div class="detail-row">
+                                <label>Категория:</label>
+                                <p><span class="badge bg-primary">@selectedService.Category</span></p>
+                            </div>
+                        }
+                        <div class="detail-row">
+                            <label>Статус:</label>
+                            <p>
+                                @if (selectedService.IsActive)
+                                {
+                                    <span class="badge bg-success">Активна</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Неактивна</span>
+                                }
+                            </p>
+                        </div>
+                        <div class="detail-row">
+                            <label>Дата создания:</label>
+                            <p>@selectedService.CreatedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                        </div>
+                        @if (selectedService.UpdatedAt.HasValue)
+                        {
+                            <div class="detail-row">
+                                <label>Последнее обновление:</label>
+                                <p>@selectedService.UpdatedAt.Value.ToString("dd.MM.yyyy HH:mm")</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .all-services-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        color: #333;
+    }
+
+    .filters-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+
+    .search-box {
+        position: relative;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+    }
+
+    .search-box .form-control {
+        padding-left: 45px;
+        border-radius: 10px;
+    }
+
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .service-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .service-card-header {
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .service-card-header h5 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .service-card-body {
+        padding: 20px;
+    }
+
+    .description {
+        color: #666;
+        margin-bottom: 15px;
+        min-height: 60px;
+    }
+
+    .service-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #555;
+    }
+
+    .info-item i {
+        color: #667eea;
+        font-size: 1.1rem;
+    }
+
+    .service-card-footer {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+    }
+
+    .service-card-footer .btn {
+        flex: 1;
+    }
+
+    .loading-container, .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+    }
+
+    .modal.show {
+        display: block;
+        z-index: 1050;
+    }
+
+    .service-details {
+        padding: 10px 0;
+    }
+
+    .detail-row {
+        margin-bottom: 20px;
+    }
+
+    .detail-row label {
+        font-weight: 600;
+        color: #333;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .detail-row p {
+        margin: 0;
+        color: #666;
+    }
+
+    .price-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+</style>
+
+@code {
+    private List<ServiceModel> allServices = new();
+    private List<ServiceModel> filteredServices = new();
+    private List<string> uniqueCategories = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string searchTerm = string.Empty;
+    private string selectedCategory = string.Empty;
+    private string selectedStatus = string.Empty;
+    private bool showModal = false;
+    private ServiceModel? selectedService = null;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(100);
+            var token = await TokenStorage.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                ServiceService.SetToken(token);
+                
+                await LoadServices();
+            }
+            else
+            {
+                errorMessage = "Не удалось получить токен авторизации.";
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadServices()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            // Загружаем услуги через API
+            allServices = await ServiceService.GetAllAsync();
+            
+            if (allServices == null)
+            {
+                allServices = new List<ServiceModel>();
+            }
+            
+            uniqueCategories = allServices
+                .Select(s => s.Category)
+                .Where(c => !string.IsNullOrEmpty(c))
+                .Distinct()
+                .ToList();
+            
+            FilterServices();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            errorMessage = "Недостаточно прав для просмотра услуг";
+            allServices = new List<ServiceModel>();
+            FilterServices();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки услуг: {ex.Message}";
+            Console.WriteLine($"[AllServices] LoadServices error: {ex}");
+            allServices = new List<ServiceModel>();
+            FilterServices();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void FilterServices()
+    {
+        if (allServices == null)
+        {
+            filteredServices = new List<ServiceModel>();
+            return;
+        }
+
+        filteredServices = allServices.Where(s =>
+            (string.IsNullOrEmpty(searchTerm) ||
+             (s.Name != null && s.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+             (s.Description != null && s.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+             (!string.IsNullOrEmpty(s.Category) && s.Category.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) &&
+            (string.IsNullOrEmpty(selectedCategory) || s.Category == selectedCategory) &&
+            (string.IsNullOrEmpty(selectedStatus) || 
+             (selectedStatus == "active" && s.IsActive) ||
+             (selectedStatus == "inactive" && !s.IsActive))
+        ).ToList();
+    }
+
+    private void OnCategoryFilterChanged(ChangeEventArgs e)
+    {
+        selectedCategory = e.Value?.ToString() ?? string.Empty;
+        FilterServices();
+    }
+
+    private void OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? string.Empty;
+        FilterServices();
+    }
+
+    private void ResetFilters()
+    {
+        searchTerm = string.Empty;
+        selectedCategory = string.Empty;
+        selectedStatus = string.Empty;
+        FilterServices();
+    }
+
+    private void ViewService(ServiceModel service)
+    {
+        selectedService = service;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        selectedService = null;
+    }
+}
+

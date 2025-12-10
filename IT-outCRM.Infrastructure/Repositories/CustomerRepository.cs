@@ -27,6 +27,17 @@ namespace IT_outCRM.Infrastructure.Repositories
                 .Where(c => c.CompanyId == companyId)
                 .ToListAsync();
         }
+
+        /// <summary>
+        /// Переопределяем GetAllAsync для загрузки навигационных свойств
+        /// </summary>
+        public override async Task<IEnumerable<Customer>> GetAllAsync()
+        {
+            return await _dbSet
+                .Include(c => c.Account)
+                .Include(c => c.Company)
+                .ToListAsync();
+        }
     }
 }
 

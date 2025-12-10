@@ -49,11 +49,34 @@ namespace IT_outCRM.Blazor.Services
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
                         Console.WriteLine($"Setting token: {authResponse.Token.Substring(0, Math.Min(10, authResponse.Token.Length))}...");
+                        Console.WriteLine($"Token length: {authResponse.Token.Length}");
+                        
+                        // Сохраняем токен
                         await _tokenStorage.SetTokenAsync(authResponse.Token);
                         
-                        // Verify token was set
-                        var storedToken = await _tokenStorage.GetTokenAsync();
-                        Console.WriteLine($"Token stored verification: {(storedToken == authResponse.Token ? "SUCCESS" : "FAILURE")}");
+                        // Даем время на сохранение в localStorage
+                        await Task.Delay(200);
+                        
+                        // Verify token was set - проверяем несколько раз
+                        string? storedToken = null;
+                        for (int i = 0; i < 3; i++)
+                        {
+                            storedToken = await _tokenStorage.GetTokenAsync();
+                            if (storedToken == authResponse.Token)
+                            {
+                                Console.WriteLine($"Token stored verification: SUCCESS (attempt {i + 1})");
+                                break;
+                            }
+                            Console.WriteLine($"Token stored verification: FAILURE (attempt {i + 1}), retrying...");
+                            await Task.Delay(100);
+                        }
+                        
+                        if (storedToken != authResponse.Token)
+                        {
+                            Console.WriteLine($"CRITICAL: Token verification FAILED after 3 attempts!");
+                            Console.WriteLine($"Expected: {authResponse.Token.Substring(0, Math.Min(20, authResponse.Token.Length))}...");
+                            Console.WriteLine($"Got: {(storedToken != null ? storedToken.Substring(0, Math.Min(20, storedToken.Length)) : "NULL")}...");
+                        }
 
                         if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
                         {
@@ -67,7 +90,26 @@ namespace IT_outCRM.Blazor.Services
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"Error response: {errorContent}");
+                    Console.WriteLine($"Error response status: {response.StatusCode}");
+                    Console.WriteLine($"Error response content: {errorContent}");
+                    
+                    // Пробуем прочитать как ProblemDetails или просто текст
+                    try
+                    {
+                        var problemDetails = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                        if (problemDetails.TryGetProperty("detail", out var detail))
+                        {
+                            Console.WriteLine($"Error detail: {detail.GetString()}");
+                        }
+                        if (problemDetails.TryGetProperty("title", out var title))
+                        {
+                            Console.WriteLine($"Error title: {title.GetString()}");
+                        }
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Error response (raw): {errorContent}");
+                    }
                 }
                 
                 Console.WriteLine($"=== LOGIN FAILED ===");
@@ -220,22 +262,33 @@ namespace IT_outCRM.Blazor.Services
         {
             try
             {
+                // Получаем токен и устанавливаем его перед запросом
+                var token = await _tokenStorage.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    SetToken(token);
+                }
+                
                 var response = await _httpClient.GetAsync("api/auth/me");
+                Console.WriteLine($"[AuthService] GetCurrentUserAsync response status: {response.StatusCode}");
+                
                 if (response.IsSuccessStatusCode)
                 {
                     var user = await response.Content.ReadFromJsonAsync<UserModel>();
+                    Console.WriteLine($"[AuthService] GetCurrentUserAsync success: {user?.Username ?? "null"}");
                     return user;
                 }
                 else
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[AuthService] Failed to get current user: {error}");
+                    Console.WriteLine($"[AuthService] Failed to get current user: {response.StatusCode} - {error}");
                     return null;
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[AuthService] Exception getting current user: {ex.Message}");
+                Console.WriteLine($"[AuthService] StackTrace: {ex.StackTrace}");
                 return null;
             }
         }
