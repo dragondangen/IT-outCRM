@@ -7,20 +7,19 @@
 
 <PageTitle>Вход - IT-outCRM</PageTitle>
 
-<div class="premium-hero-section">
-    <div class="premium-hero-background"></div>
-    <div class="container position-relative z-2">
+<div class="login-page">
+    <div class="login-container">
         <div class="row justify-content-center">
             <div class="col-md-6 col-lg-5">
-                <div class="premium-card">
+                <div class="login-card">
                     <div class="text-center mb-4">
-                        <h2 class="premium-section-title mb-3" style="font-size: 2rem;">Вход в систему</h2>
-                        <p class="premium-section-subtitle" style="font-size: 1rem; margin-bottom: 0;">Добро пожаловать в IT-outCRM</p>
+                        <h2 class="login-title">Вход в систему</h2>
+                        <p class="login-subtitle">Добро пожаловать в IT-outCRM</p>
                     </div>
                     
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
-                        <div class="alert alert-danger" role="alert" style="border-radius: 8px; margin-bottom: 1.5rem;">
+                        <div class="alert alert-danger login-alert" role="alert">
                             <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
                         </div>
                     }
@@ -29,33 +28,33 @@
                         <DataAnnotationsValidator />
                         
                         <div class="mb-3">
-                            <label for="username" class="form-label" style="font-weight: 600; color: var(--premium-text);">Имя пользователя</label>
-                            <InputText id="username" class="form-control" @bind-Value="LoginModel!.Username" style="border-radius: 8px; padding: 12px;" />
-                            <ValidationMessage For="@(() => LoginModel!.Username)" />
+                            <label for="username" class="login-label">Имя пользователя</label>
+                            <InputText id="username" class="form-control login-input" @bind-Value="LoginModel!.Username" />
+                            <ValidationMessage For="@(() => LoginModel!.Username)" class="validation-message" />
                         </div>
 
                         <div class="mb-4">
-                            <label for="password" class="form-label" style="font-weight: 600; color: var(--premium-text);">Пароль</label>
-                            <InputText id="password" type="password" class="form-control" @bind-Value="LoginModel!.Password" style="border-radius: 8px; padding: 12px;" />
-                            <ValidationMessage For="@(() => LoginModel!.Password)" />
+                            <label for="password" class="login-label">Пароль</label>
+                            <InputText id="password" type="password" class="form-control login-input" @bind-Value="LoginModel!.Password" />
+                            <ValidationMessage For="@(() => LoginModel!.Password)" class="validation-message" />
                         </div>
 
                         <div class="d-grid gap-2 mb-3">
-                            <button type="submit" class="btn-premium-primary" disabled="@isLoading" style="width: 100%; justify-content: center;">
+                            <button type="submit" class="btn btn-primary login-button" disabled="@isLoading">
                                 @if (isLoading)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                                 }
                                 <span>Войти</span>
-                                <i class="bi bi-arrow-right"></i>
+                                <i class="bi bi-arrow-right ms-2"></i>
                             </button>
                         </div>
                     </EditForm>
 
                     <div class="text-center mt-4">
-                        <p style="color: var(--premium-text-light); margin: 0;">
+                        <p class="login-footer-text">
                             Нет аккаунта? 
-                            <a href="/register" style="color: var(--premium-silver); font-weight: 600; text-decoration: none;">Зарегистрироваться</a>
+                            <a href="/register" class="login-link">Зарегистрироваться</a>
                         </p>
                     </div>
                 </div>
@@ -65,21 +64,128 @@
 </div>
 
 <style>
-    .premium-hero-section {
+    .login-page {
         min-height: 100vh;
         display: flex;
         align-items: center;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 2rem 0;
     }
 
-    .z-2 {
-        position: relative;
-        z-index: 2;
+    .login-container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 15px;
     }
 
-    .form-control:focus {
-        border-color: var(--premium-silver);
+    .login-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2.5rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .login-subtitle {
+        font-size: 1rem;
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+
+    .login-label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .login-input {
+        border-radius: 8px;
+        padding: 12px;
+        border: 1px solid #dee2e6;
+        color: #2c3e50;
+        background-color: #ffffff;
+    }
+
+    .login-input:focus {
+        border-color: #8b8b8b;
         box-shadow: 0 0 0 3px rgba(139, 139, 139, 0.1);
-        background-color: var(--premium-white);
+        background-color: #ffffff;
+        color: #2c3e50;
+    }
+
+    .login-button {
+        background: linear-gradient(135deg, #8b8b8b 0%, #b0b0b0 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 600;
+        color: #0a0e13;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .login-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(139, 139, 139, 0.3);
+        background: linear-gradient(135deg, #b0b0b0 0%, #8b8b8b 100%);
+        color: #0a0e13;
+    }
+
+    .login-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .login-alert {
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+
+    .login-footer-text {
+        color: #6c757d;
+        margin: 0;
+    }
+
+    .login-link {
+        color: #8b8b8b;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .login-link:hover {
+        color: #1e3a5f;
+        text-decoration: underline;
+    }
+
+    .validation-message {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    @@media (max-width: 768px) {
+        .login-card {
+            padding: 1.5rem;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+        }
     }
 </style>
 

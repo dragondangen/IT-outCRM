@@ -6,8 +6,19 @@ using Microsoft.AspNetCore.Components.Authorization;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
+var razorComponentsBuilder = builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Configure Blazor Server circuit options to handle disconnections gracefully
+razorComponentsBuilder.AddCircuitOptions(options =>
+{
+    // Increase timeout for JS interop calls to prevent premature cancellations
+    options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
+    // Increase circuit disconnect timeout
+    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
+    // Increase maximum buffer size for better reliability
+    options.MaxBufferedUnacknowledgedRenderBatches = 20;
+});
 
 // Get API base URL from configuration
 var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7224";

@@ -309,15 +309,52 @@
             // Небольшая задержка перед навигацией для завершения logout
             await Task.Delay(100);
             
-            // Используем forceLoad для полной очистки состояния
-            Navigation.NavigateTo("/login", forceLoad: true);
+            // Используем InvokeAsync для безопасной навигации на renderer thread
+            await InvokeAsync(async () =>
+            {
+                try
+                {
+                    // Используем forceLoad для полной очистки состояния
+                    Navigation.NavigateTo("/login", forceLoad: true);
+                }
+                catch (TaskCanceledException)
+                {
+                    // Игнорируем отмену навигации
+                }
+                catch (JSDisconnectedException)
+                {
+                    // Игнорируем ошибки отключения JS
+                }
+            });
+        }
+        catch (TaskCanceledException)
+        {
+            // Игнорируем отмену
+        }
+        catch (JSDisconnectedException)
+        {
+            // Игнорируем ошибки отключения JS
         }
         catch (Exception)
         {
             // В случае ошибки всё равно перенаправляем на логин
             try
             {
-                Navigation.NavigateTo("/login", forceLoad: true);
+                await InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        Navigation.NavigateTo("/login", forceLoad: true);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // Игнорируем отмену навигации
+                    }
+                    catch (JSDisconnectedException)
+                    {
+                        // Игнорируем ошибки отключения JS
+                    }
+                });
             }
             catch
             {

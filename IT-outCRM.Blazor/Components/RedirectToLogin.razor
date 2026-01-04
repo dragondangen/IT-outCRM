@@ -1,29 +1,53 @@
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <p>Перенаправление на страницу входа...</p>
 
 @code {
     private bool _isNavigating = false;
+    private CancellationTokenSource? _cancellationTokenSource;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_isNavigating)
         {
             _isNavigating = true;
+            _cancellationTokenSource = new CancellationTokenSource();
+            
             try
             {
                 // Используем задержку для предотвращения конфликтов навигации
-                await Task.Delay(100);
+                await Task.Delay(100, _cancellationTokenSource.Token);
                 
-                // Используем forceLoad для полной перезагрузки страницы
-                // Это предотвращает проблемы с прерыванием навигации
-                Navigation.NavigateTo("/login", forceLoad: true);
+                // Используем InvokeAsync для безопасной навигации на renderer thread
+                await InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        // Используем forceLoad для полной перезагрузки страницы
+                        // Это предотвращает проблемы с прерыванием навигации
+                        Navigation.NavigateTo("/login", forceLoad: true);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // Игнорируем отмену навигации - это происходит, когда пользователь
+                        // быстро переходит между страницами или соединение прерывается
+                        // Это не критичная ошибка
+                    }
+                    catch (JSDisconnectedException)
+                    {
+                        // Игнорируем ошибки отключения JS - пользователь может обновить страницу
+                    }
+                });
             }
             catch (TaskCanceledException)
             {
-                // Игнорируем отмену навигации - это происходит, когда пользователь
-                // быстро переходит между страницами или соединение прерывается
-                // Это не критичная ошибка
+                // Игнорируем отмену - это нормально при быстрых переходах
+            }
+            catch (JSDisconnectedException)
+            {
+                // Игнорируем ошибки отключения JS
             }
             catch (Exception)
             {
@@ -31,6 +55,12 @@
                 // Пользователь может просто обновить страницу вручную
             }
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
     }
 }
 

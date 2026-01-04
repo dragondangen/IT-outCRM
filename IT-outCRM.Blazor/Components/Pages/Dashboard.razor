@@ -839,7 +839,29 @@
                       try
                       {
                           await Task.Delay(100); // Небольшая задержка перед навигацией
-                          Navigation.NavigateTo("/login", forceLoad: true);
+                          await InvokeAsync(async () =>
+                          {
+                              try
+                              {
+                                  Navigation.NavigateTo("/login", forceLoad: true);
+                              }
+                              catch (TaskCanceledException)
+                              {
+                                  // Игнорируем отмену навигации
+                              }
+                              catch (JSDisconnectedException)
+                              {
+                                  // Игнорируем ошибки отключения JS
+                              }
+                          });
+                      }
+                      catch (TaskCanceledException)
+                      {
+                          // Игнорируем отмену
+                      }
+                      catch (JSDisconnectedException)
+                      {
+                          // Игнорируем ошибки отключения JS
                       }
                       catch (Exception navEx)
                       {
