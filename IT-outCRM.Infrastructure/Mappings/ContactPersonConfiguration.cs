@@ -18,6 +18,7 @@ namespace IT_outCRM.Infrastructure.Mappings
                 .HasMaxLength(100);
                 
             builder.Property(x => x.MiddleName)
+                .IsRequired()
                 .HasMaxLength(100);
                 
             builder.Property(x => x.Email)
@@ -35,8 +36,9 @@ namespace IT_outCRM.Infrastructure.Mappings
             builder.HasIndex(x => x.Email)
                 .IsUnique();
 
-            // Игнорируем вычисляемое свойство FullName при маппинге
             builder.Ignore(x => x.FullName);
+
+            builder.ToTable("ContactPerson");
         }
     }
 }

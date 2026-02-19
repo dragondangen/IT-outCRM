@@ -208,40 +208,47 @@ namespace IT_outCRM.Blazor.Services
 
         public async Task RemoveTokenAsync()
         {
-            // Логируем стек вызовов ПЕРЕД удалением, чтобы понять, откуда вызывается
-            var stackTrace = Environment.StackTrace;
-            Console.WriteLine($"[TokenStorage] RemoveTokenAsync called from:");
-            Console.WriteLine($"[TokenStorage] StackTrace: {stackTrace}");
-            _logger.LogWarning("Token is being removed. Stack trace: {StackTrace}", stackTrace);
+            _logger.LogInformation("RemoveTokenAsync called — clearing all token stores");
             
             _cachedToken = null;
             
-            // Удаляем из общего кэша
             lock (_lock)
             {
                 _sharedToken = null;
-                Console.WriteLine("[TokenStorage] Token removed from shared cache");
             }
             
-            // Удаляем из cookies
-            var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext != null)
+            // Удаляем из cookies через JS (Response.Cookies.Delete не работает в SignalR)
+            try
             {
-                httpContext.Response.Cookies.Delete(TokenKey);
-                Console.WriteLine("[TokenStorage] Token removed from cookie");
-                _logger.LogInformation("Token successfully removed from cookie");
+                await _jsRuntime.InvokeVoidAsync("eval",
+                    "document.cookie='authToken=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/'");
+                _logger.LogInformation("Token cookie cleared via JS");
             }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Error clearing cookie via JS: {Message}", ex.Message);
+            }
+            
+            // Также пробуем серверный способ (работает если response ещё не начат)
+            try
+            {
+                var httpContext = _httpContextAccessor.HttpContext;
+                if (httpContext != null && !httpContext.Response.HasStarted)
+                {
+                    httpContext.Response.Cookies.Delete(TokenKey);
+                }
+            }
+            catch { }
             
             // Удаляем из localStorage
             try
             {
                 await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
-                Console.WriteLine("[TokenStorage] Token removed from localStorage");
-                _logger.LogInformation("Token successfully removed from localStorage");
+                _logger.LogInformation("Token removed from localStorage");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning($"Error removing token from localStorage: {ex.Message}");
+                _logger.LogWarning("Error removing token from localStorage: {Message}", ex.Message);
             }
         }
 

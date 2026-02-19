@@ -22,7 +22,9 @@ namespace IT_outCRM.Infrastructure
 
             // Repositories
             services.AddScoped<IAccountRepository, AccountRepository>();
+            services.AddScoped<IAccountStatusRepository, AccountStatusRepository>();
             services.AddScoped<IOrderRepository, OrderRepository>();
+            services.AddScoped<IOrderStatusRepository, OrderStatusRepository>();
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<IExecutorRepository, ExecutorRepository>();

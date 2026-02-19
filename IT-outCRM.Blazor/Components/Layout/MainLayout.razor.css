@@ -1,5 +1,4 @@
 .page {
-    position: relative;
     display: grid;
     grid-template-columns: auto 1fr;
     min-height: 100vh;
@@ -14,16 +13,17 @@
 
 .sidebar {
     grid-column: 1;
+    grid-row: 1;
     height: 100vh;
     margin: 0;
     padding: 0;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    /* Ширина устанавливается динамически через inline стили */
+    transition: width 0.25s ease;
     overflow: hidden;
 }
 
 main {
     grid-column: 2;
+    grid-row: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -32,6 +32,7 @@ main {
     overflow-x: hidden;
     background-color: #ffffff;
     width: 100%;
+    position: relative;
 }
 
 .content {
@@ -43,50 +44,15 @@ main {
     background-color: #ffffff;
 }
 
-/* Overlay для мобильного меню */
-.mobile-menu-overlay {
-    display: none;
-}
-
-/* Мобильные устройства */
 @media (max-width: 768px) {
     .page {
         grid-template-columns: 1fr;
-        position: relative;
-    }
-
-    .mobile-menu-overlay {
-        display: block;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 998;
-        backdrop-filter: blur(2px);
-    }
-
-    .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 999;
-        transform: translateX(-100%);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        height: 100vh;
-        width: 280px !important;
-        max-width: 85vw;
-    }
-
-    .sidebar.mobile-open {
-        transform: translateX(0);
     }
 
     main {
         grid-column: 1;
+        grid-row: 1;
         width: 100%;
-        margin-left: 0;
     }
 
     .content {
@@ -95,11 +61,6 @@ main {
 }
 
 @media (max-width: 480px) {
-    .sidebar {
-        width: 100vw !important;
-        max-width: 100vw;
-    }
-
     .content {
         padding: 1rem 0.5rem;
     }

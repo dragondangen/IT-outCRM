@@ -11,6 +11,14 @@ namespace IT_outCRM.Blazor.Models
         public bool IsActive { get; set; }
         public string? AvatarUrl { get; set; }
     }
+
+    public class UpdateUserModel
+    {
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+        public string? Role { get; set; }
+        public bool? IsActive { get; set; }
+    }
 }
 
 

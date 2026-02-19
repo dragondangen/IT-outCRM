@@ -244,6 +244,41 @@ namespace IT_outCRM.Blazor.Services
             }
         }
 
+        public async Task<UserModel?> UpdateUserAsync(Guid userId, UpdateUserModel model)
+        {
+            try
+            {
+                var response = await _httpClient.PutAsJsonAsync($"api/auth/users/{userId}", model);
+                if (response.IsSuccessStatusCode)
+                    return await response.Content.ReadFromJsonAsync<UserModel>();
+
+                var error = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(error);
+            }
+            catch (InvalidOperationException) { throw; }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Exception updating user: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<UserModel?> ToggleUserActiveAsync(Guid userId)
+        {
+            try
+            {
+                var response = await _httpClient.PatchAsync($"api/auth/users/{userId}/toggle-active", null);
+                if (response.IsSuccessStatusCode)
+                    return await response.Content.ReadFromJsonAsync<UserModel>();
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Exception toggling user active: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<bool> DeleteUserAsync(Guid userId)
         {
             try 

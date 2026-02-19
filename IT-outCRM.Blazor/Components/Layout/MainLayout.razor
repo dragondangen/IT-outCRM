@@ -1,20 +1,28 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @using IT_outCRM.Blazor.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthStateProvider
 
 <div class="page">
-    <!-- Overlay для закрытия меню на мобильных -->
     @if (isMobileMenuOpen)
     {
-        <div class="mobile-menu-overlay" @onclick="CloseMobileMenu"></div>
+        <div class="sidebar-overlay" @onclick="CloseMobileMenu"></div>
     }
 
-    <div class="sidebar @(isMobileMenuOpen ? "mobile-open" : "")">
-        <NavMenu @ref="navMenu" />
+    <div class="sidebar @(isMobileMenuOpen ? "mobile-open" : "") @(isSidebarCollapsed ? "collapsed" : "")">
+        <NavMenu @ref="navMenu"
+                 IsMobileMenuOpen="@isMobileMenuOpen"
+                 OnCloseRequested="@(() => { isMobileMenuOpen = false; StateHasChanged(); })"
+                 OnCollapseChanged="@((collapsed) => { isSidebarCollapsed = collapsed; StateHasChanged(); })" />
     </div>
 
     <main>
+        @if (!isMobileMenuOpen)
+        {
+            <button class="mobile-fab" @onclick="ToggleMobileMenu" aria-label="Меню">
+                <i class="bi bi-list"></i>
+            </button>
+        }
         <article class="content">
             <ErrorBoundary @key="@Navigation.Uri">
                 <ChildContent>
@@ -54,9 +62,21 @@
 @code {
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
-    
+
     private NavMenu? navMenu;
     private bool isMobileMenuOpen = false;
+    private bool isSidebarCollapsed = false;
+
+    private void ToggleMobileMenu()
+    {
+        isMobileMenuOpen = !isMobileMenuOpen;
+    }
+
+    private void CloseMobileMenu()
+    {
+        isMobileMenuOpen = false;
+        StateHasChanged();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -67,32 +87,6 @@
             {
                 customProvider.NotifyAuthenticationStateChanged();
             }
-
-            // Подписываемся на изменения состояния мобильного меню
-            if (navMenu != null)
-            {
-                navMenu.OnMobileMenuStateChanged += UpdateMobileMenuState;
-            }
         }
-    }
-
-    private void UpdateMobileMenuState()
-    {
-        if (navMenu != null)
-        {
-            isMobileMenuOpen = navMenu.IsMobileMenuOpen;
-            StateHasChanged();
-        }
-    }
-
-
-    private void CloseMobileMenu()
-    {
-        isMobileMenuOpen = false;
-        if (navMenu != null)
-        {
-            navMenu.CloseMobileMenuPublic();
-        }
-        StateHasChanged();
     }
 }

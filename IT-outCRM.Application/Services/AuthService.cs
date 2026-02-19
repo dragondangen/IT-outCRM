@@ -234,13 +234,84 @@ namespace IT_outCRM.Application.Services
             return _mapper.Map<IEnumerable<UserDto>>(users);
         }
 
+        public async Task<UserDto> UpdateUserAsync(Guid userId, UpdateUserDto updateDto)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null)
+                throw new KeyNotFoundException($"User with ID {userId} not found");
+
+            if (!string.IsNullOrWhiteSpace(updateDto.Username))
+            {
+                var existing = await _unitOfWork.Users.GetByUsernameAsync(updateDto.Username);
+                if (existing != null && existing.Id != userId)
+                    throw new InvalidOperationException("Пользователь с таким именем уже существует");
+                user.Username = updateDto.Username;
+            }
+
+            if (!string.IsNullOrWhiteSpace(updateDto.Email))
+            {
+                var existing = await _unitOfWork.Users.GetByEmailAsync(updateDto.Email);
+                if (existing != null && existing.Id != userId)
+                    throw new InvalidOperationException("Пользователь с таким email уже существует");
+                user.Email = updateDto.Email;
+            }
+
+            if (!string.IsNullOrWhiteSpace(updateDto.Role))
+            {
+                var allowedRoles = new[] { "User", "Admin", "Manager", "Executor" };
+                if (!allowedRoles.Contains(updateDto.Role))
+                    throw new InvalidOperationException($"Недопустимая роль: {updateDto.Role}");
+                user.Role = updateDto.Role;
+            }
+
+            if (updateDto.IsActive.HasValue)
+                user.IsActive = updateDto.IsActive.Value;
+
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new UserDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                Role = user.Role,
+                CreatedAt = user.CreatedAt,
+                LastLoginAt = user.LastLoginAt,
+                IsActive = user.IsActive,
+                AvatarUrl = user.AvatarUrl
+            };
+        }
+
+        public async Task<UserDto> ToggleUserActiveAsync(Guid userId)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null)
+                throw new KeyNotFoundException($"User with ID {userId} not found");
+
+            user.IsActive = !user.IsActive;
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new UserDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                Role = user.Role,
+                CreatedAt = user.CreatedAt,
+                LastLoginAt = user.LastLoginAt,
+                IsActive = user.IsActive,
+                AvatarUrl = user.AvatarUrl
+            };
+        }
+
         public async Task DeleteUserAsync(Guid userId)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null)
                 throw new KeyNotFoundException($"User with ID {userId} not found");
 
-            // ВАРИАНТ 1: Полное физическое удаление
             await _unitOfWork.Users.DeleteAsync(user);
             await _unitOfWork.SaveChangesAsync();
         }

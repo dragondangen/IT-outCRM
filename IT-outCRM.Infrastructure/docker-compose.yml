@@ -45,9 +45,3 @@ services:
 networks:
   postgres-network:
     driver: bridge
-
-volumes:
-  postgres-data:
-    driver: local
-  pgadmin-data:
-    driver: local

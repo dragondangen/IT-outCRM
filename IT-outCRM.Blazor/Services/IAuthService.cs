@@ -10,6 +10,8 @@ namespace IT_outCRM.Blazor.Services
         Task<bool> IsAuthenticatedAsync();
         Task<string?> GetTokenAsync();
         Task<List<UserModel>> GetAllUsersAsync();
+        Task<UserModel?> UpdateUserAsync(Guid userId, UpdateUserModel model);
+        Task<UserModel?> ToggleUserActiveAsync(Guid userId);
         Task<bool> DeleteUserAsync(Guid userId);
         Task<UserModel?> GetCurrentUserAsync();
         void SetToken(string token);

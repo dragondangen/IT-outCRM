@@ -396,3 +396,17 @@ docker-compose.override.yml
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# JetBrains Rider / IntelliJ IDEA
+.idea/
+
+# Deploy artifacts
+deploy/
+nginx/
+*.zip
+
+# E2E test artifacts
+e2e-tests/
+
+# User-uploaded content
+**/wwwroot/avatars/

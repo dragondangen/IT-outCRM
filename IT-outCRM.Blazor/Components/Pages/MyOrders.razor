@@ -19,11 +19,9 @@
             <h2>📦 Мои заказы</h2>
             <p class="text-muted">Здесь вы можете просматривать и отслеживать свои заказы</p>
         </div>
-        <AuthorizeView Roles="Admin,Manager,Client">
-            <button class="btn btn-primary btn-lg" @onclick="CreateOrder">
-                <i class="bi bi-plus-circle"></i> Новый заказ
-            </button>
-        </AuthorizeView>
+        <button class="btn btn-primary btn-lg" @onclick="CreateOrder">
+            <i class="bi bi-plus-circle"></i> Новый заказ
+        </button>
     </div>
 
     <!-- Фильтры -->
@@ -65,7 +63,7 @@
     {
         <div class="loading-container">
             <div class="spinner-border text-primary" role="status">
-                <span class="visibly-hidden">Загрузка...</span>
+                <span class="visually-hidden">Загрузка...</span>
             </div>
             <p class="mt-3">Загрузка ваших заказов...</p>
         </div>
@@ -404,8 +402,8 @@
     {
         filteredOrders = myOrders.Where(o =>
             (string.IsNullOrEmpty(searchTerm) ||
-             o.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-             o.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+             (o.Name != null && o.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+             (o.Description != null && o.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) &&
             (string.IsNullOrEmpty(selectedStatus) || o.OrderStatusName == selectedStatus)
         ).ToList();
     }
@@ -433,5 +431,3 @@
         Navigation.NavigateTo($"/orders/{orderId}");
     }
 }
-
-

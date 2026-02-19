@@ -19,10 +19,10 @@
 <div class="create-order-container">
     <div class="page-header">
         <div>
-            <button class="btn btn-link text-muted p-0 mb-2" @onclick='() => Navigation.NavigateTo("/orders")'>
+            <button class="btn btn-link text-muted p-0 mb-2" @onclick="GoBack">
                 <i class="bi bi-arrow-left"></i> Назад к списку заказов
             </button>
-                    <h2><i class="bi bi-box-seam"></i> Создание нового заказа</h2>
+            <h2><i class="bi bi-box-seam"></i> Создание нового заказа</h2>
         </div>
     </div>
 
@@ -156,7 +156,7 @@
                 }
 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/orders")'>
+                    <button type="button" class="btn btn-secondary" @onclick="GoBack">
                         <i class="bi bi-x-circle"></i> Отмена
                     </button>
                     <button type="submit" class="btn btn-primary" disabled="@(isSubmitting || !CanSubmit())">
@@ -362,6 +362,11 @@
         return customers.Any() && orderStatuses.Any();
     }
 
+    private void GoBack()
+    {
+        Navigation.NavigateTo(isAdminOrManager ? "/orders" : "/my-orders");
+    }
+
     private async Task HandleSubmit()
     {
         if (CreateModel == null) return;
@@ -397,7 +402,7 @@
             
             if (result != null)
             {
-                Navigation.NavigateTo("/orders");
+                Navigation.NavigateTo(isAdminOrManager ? "/orders" : "/my-orders");
             }
             else
             {

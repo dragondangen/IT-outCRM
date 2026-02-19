@@ -145,11 +145,48 @@ namespace IT_outCRM.Controllers
         /// Доступно только пользователям с ролью Admin
         /// </remarks>
         [Authorize(Roles = "Admin")]
+        [HttpPut("users/{id}")]
+        [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<UserDto>> UpdateUser(Guid id, [FromBody] UpdateUserDto updateDto)
+        {
+            try
+            {
+                var user = await _authService.UpdateUserAsync(id, updateDto);
+                return Ok(user);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPatch("users/{id}/toggle-active")]
+        [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<UserDto>> ToggleUserActive(Guid id)
+        {
+            try
+            {
+                var user = await _authService.ToggleUserActiveAsync(id);
+                return Ok(user);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [Authorize(Roles = "Admin")]
         [HttpDelete("users/{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> DeleteUser(Guid id)
         {
             try 

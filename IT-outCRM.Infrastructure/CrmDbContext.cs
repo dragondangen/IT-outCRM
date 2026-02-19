@@ -1,4 +1,4 @@
-﻿using IT_outCRM.Domain.Entity;
+using IT_outCRM.Domain.Entity;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
@@ -17,6 +17,8 @@ namespace IT_outCRM.Infrastructure
         public DbSet<Admin> Admins { get; set; }
 
         public DbSet<Company> Companies { get; set; }
+
+        public DbSet<ContactPerson> ContactPersons { get; set; }
 
         public DbSet<Customer> Customers { get; set; }
 

@@ -27,8 +27,8 @@ namespace IT_outCRM.Application.Validators.Auth
                 .Matches(@"[!@#$%^&*()_+\-=\[\]{};':""\\|,.<>/?]").WithMessage("Пароль должен содержать хотя бы один специальный символ (!@#$%^&* и т.д.)");
 
             RuleFor(x => x.Role)
-                .Must(role => role == "User" || role == "Admin" || role == "Manager")
-                .WithMessage("Роль должна быть: User, Admin или Manager");
+                .Must(role => role == "User" || role == "Admin" || role == "Manager" || role == "Executor")
+                .WithMessage("Роль должна быть: User, Admin, Manager или Executor");
         }
     }
 }

@@ -514,7 +514,6 @@
         font-weight: 600;
         white-space: nowrap;
         background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(10px);
     }
 
     .order-card-body {
@@ -780,8 +779,8 @@
     {
         filteredOrders = myOrders.Where(o =>
             (string.IsNullOrEmpty(searchTerm) ||
-             o.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-             (!string.IsNullOrEmpty(o.Description) && o.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) &&
+             (o.Name != null && o.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+             (o.Description != null && o.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) &&
             (string.IsNullOrEmpty(selectedStatus) || o.OrderStatusName == selectedStatus)
         ).ToList();
     }

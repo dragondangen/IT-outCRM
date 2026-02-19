@@ -21,7 +21,7 @@ razorComponentsBuilder.AddCircuitOptions(options =>
 });
 
 // Get API base URL from configuration
-var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7224";
+var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5295";
 
 // Register HttpContextAccessor for cookie access
 builder.Services.AddHttpContextAccessor();
