@@ -3,6 +3,10 @@
 ###############################################################################
 * text=auto
 
+# Linguist: classify Blazor files as C#
+*.razor linguist-language=C#
+*.razor.css linguist-language=CSS
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #
