@@ -2,12 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY IT-outCRM.Blazor/IT-outCRM.Blazor.csproj IT-outCRM.Blazor/
-RUN dotnet restore IT-outCRM.Blazor/IT-outCRM.Blazor.csproj
-
+# In .NET 10, blazor.web.js is a static web asset that requires .razor files
+# to be present during restore for proper detection. Copy everything first.
 COPY IT-outCRM.Blazor/ IT-outCRM.Blazor/
 
-RUN dotnet publish IT-outCRM.Blazor/IT-outCRM.Blazor.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish IT-outCRM.Blazor/IT-outCRM.Blazor.csproj -c Release -o /app/publish
 
 # ---- Runtime stage ----
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

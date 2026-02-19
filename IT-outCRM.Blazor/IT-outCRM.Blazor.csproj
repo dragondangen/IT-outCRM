@@ -7,6 +7,7 @@
     <RootNamespace>IT_outCRM.Blazor</RootNamespace>
     <AssemblyName>$(AssemblyName.Replace(' ', '_'))</AssemblyName>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <EnableStaticWebAssetCompression>true</EnableStaticWebAssetCompression>
   </PropertyGroup>
 
   <ItemGroup>

@@ -169,8 +169,10 @@ app.Use(async (context, next) =>
 });
 
 app.UseStaticFiles();
+app.UseRouting();
 app.UseAntiforgery();
 
+app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
