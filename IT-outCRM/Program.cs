@@ -238,13 +238,19 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// HSTS для Production (HTTPS принудительно)
+// В Production SSL терминация на уровне nginx — доверяем прокси-заголовкам
 if (app.Environment.IsProduction())
 {
-    app.UseHsts(); // HTTP Strict Transport Security
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                         | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+    });
 }
-
-app.UseHttpsRedirection();
+else
+{
+    app.UseHttpsRedirection();
+}
 
 // Статические файлы (для аватаров) - ДО аутентификации, чтобы не требовалась авторизация
 var staticFilesOptions = new StaticFileOptions

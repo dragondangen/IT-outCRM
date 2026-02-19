@@ -16,8 +16,17 @@
 - **Executor** — просмотр доступных заказов, взятие заказов в работу, управление своими услугами
 - **User (Клиент)** — создание заказов, просмотр своих заказов, профиль
 
-## URLs
+## URLs (локальная разработка)
 
 - **Frontend (Blazor):** http://localhost:5159
 - **Backend API:** http://localhost:5295
 - **Swagger:** http://localhost:5295/swagger
+
+## Production сервер (Beget Docker)
+
+- **IP:** 155.212.209.119
+- **Пользователь:** root
+- **ОС:** Docker latest
+- **Домен:** http://it-out-crm.ru
+- **Frontend:** http://it-out-crm.ru
+- **API:** http://it-out-crm.ru/api/

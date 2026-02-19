@@ -1,0 +1,31 @@
+# ---- Build stage ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY IT-outCRM.Domain/IT-outCRM.Domain.csproj IT-outCRM.Domain/
+COPY IT-outCRM.Application/IT-outCRM.Application.csproj IT-outCRM.Application/
+COPY IT-outCRM.Infrastructure/IT-outCRM.Infrastructure.csproj IT-outCRM.Infrastructure/
+COPY IT-outCRM/IT-outCRM.csproj IT-outCRM/
+RUN dotnet restore IT-outCRM/IT-outCRM.csproj
+
+COPY IT-outCRM.Domain/ IT-outCRM.Domain/
+COPY IT-outCRM.Application/ IT-outCRM.Application/
+COPY IT-outCRM.Infrastructure/ IT-outCRM.Infrastructure/
+COPY IT-outCRM/ IT-outCRM/
+
+RUN dotnet publish IT-outCRM/IT-outCRM.csproj -c Release -o /app/publish --no-restore
+
+# ---- Runtime stage ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+RUN mkdir -p /app/wwwroot/uploads
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:8080
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "IT-outCRM.dll"]
