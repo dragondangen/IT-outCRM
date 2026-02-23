@@ -23,8 +23,11 @@ namespace IT_outCRM.Blazor.Services
 
                 if (string.IsNullOrEmpty(token))
                 {
-                    await Task.Delay(50);
-                    token = await _authStateProvider.GetTokenAsync();
+                    for (int i = 0; i < 5 && string.IsNullOrEmpty(token); i++)
+                    {
+                        await Task.Delay(200);
+                        token = await _authStateProvider.GetTokenAsync();
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(token))
