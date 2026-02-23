@@ -43,12 +43,14 @@ trap cleanup EXIT
 echo "$LOG_PREFIX Pulling latest changes..."
 git pull origin master --quiet
 
-echo "$LOG_PREFIX Building and restarting containers..."
-docker compose -f docker-compose.production.yml build --no-cache api blazor
-docker compose -f docker-compose.production.yml up -d api blazor
+echo "$LOG_PREFIX Building containers (with cache)..."
+docker compose -f docker-compose.production.yml build api blazor 2>&1 | tail -20
+
+echo "$LOG_PREFIX Restarting containers..."
+docker compose -f docker-compose.production.yml up -d api blazor 2>&1
 
 echo "$LOG_PREFIX Waiting for health check..."
-sleep 10
+sleep 20
 
 if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
     echo "$LOG_PREFIX Deploy successful! API is healthy."
