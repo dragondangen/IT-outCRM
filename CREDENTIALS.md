@@ -132,3 +132,20 @@
 - **Домен:** http://it-out-crm.ru
 - **Frontend:** http://it-out-crm.ru
 - **API:** http://it-out-crm.ru/api/
+
+## Автодеплой
+
+Сервер автоматически проверяет GitHub каждые 5 минут и подтягивает изменения.
+
+- **Скрипт:** `/opt/it-outcrm/autodeploy.sh`
+- **Лог:** `/var/log/crm-deploy.log`
+- **Cron:** `*/5 * * * * /opt/it-outcrm/autodeploy.sh`
+- **GitHub Deploy Key:** `server-autodeploy` (SSH ed25519)
+
+### Как это работает
+
+1. Cron запускает `autodeploy.sh` каждые 5 минут
+2. Скрипт делает `git fetch` и сравнивает локальный коммит с `origin/master`
+3. Если есть новые коммиты — делает `git pull`, пересобирает контейнеры `api` и `blazor`, перезапускает
+4. Логирует результат в `/var/log/crm-deploy.log`
+5. Проверяет health-check API после деплоя
