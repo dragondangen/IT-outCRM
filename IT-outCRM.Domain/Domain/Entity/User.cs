@@ -11,6 +11,8 @@ namespace IT_outCRM.Domain.Entity
         public DateTime? LastLoginAt { get; set; }
         public bool IsActive { get; set; } = true;
         public string? AvatarUrl { get; set; }
+        public string? PasswordResetToken { get; set; }
+        public DateTime? PasswordResetTokenExpiry { get; set; }
     }
 }
 

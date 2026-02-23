@@ -51,6 +51,7 @@
                                 <tr>
                                     <th>Имя исполнителя</th>
                                     <th>Компания</th>
+                                    <th>Аккаунт</th>
                                     <th>Завершено заказов</th>
                                     <th>Действия</th>
                                 </tr>
@@ -78,6 +79,11 @@
                                         <td>
                                             <span class="company-badge">
                                                 <i class="bi bi-building"></i> @(string.IsNullOrEmpty(executor.CompanyName) ? "Не указана" : executor.CompanyName)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="account-badge">
+                                                <i class="bi bi-diagram-3"></i> @(string.IsNullOrEmpty(executor.AccountName) ? "—" : executor.AccountName)
                                             </span>
                                         </td>
                                         <td>
@@ -226,6 +232,18 @@
         padding: 6px 12px;
         background: #e7f3ff;
         color: #0066cc;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .account-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #f0e6ff;
+        color: #6f42c1;
         border-radius: 20px;
         font-size: 0.875rem;
         font-weight: 500;

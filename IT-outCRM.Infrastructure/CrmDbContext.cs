@@ -34,6 +34,16 @@ namespace IT_outCRM.Infrastructure
 
         public DbSet<Service> Services { get; set; }
 
+        public DbSet<Deal> Deals { get; set; }
+
+        public DbSet<DealMessage> DealMessages { get; set; }
+
+        public DbSet<Notification> Notifications { get; set; }
+
+        public DbSet<Attachment> Attachments { get; set; }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -6,6 +6,7 @@ namespace IT_outCRM.Application.Interfaces.Repositories
     {
         Task<Executor?> GetExecutorWithDetailsAsync(Guid id);
         Task<IEnumerable<Executor>> GetTopExecutorsAsync(int count);
+        Task<Executor?> GetByCompanyIdAsync(Guid companyId);
     }
 }
 

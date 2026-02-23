@@ -199,5 +199,59 @@ namespace IT_outCRM.Controllers
                 return NotFound();
             }
         }
+
+        /// <summary>
+        /// Запрос сброса пароля — возвращает токен (в production отправлялся бы по email)
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("request-reset")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> RequestPasswordReset([FromBody] RequestResetDto dto)
+        {
+            try
+            {
+                var token = await _authService.RequestPasswordResetAsync(dto.Email);
+                _logger.LogInformation("Password reset requested for {Email}", dto.Email);
+                return Ok(new { message = "Токен сброса создан", token });
+            }
+            catch (KeyNotFoundException)
+            {
+                return Ok(new { message = "Если пользователь существует, ему будет отправлена ссылка" });
+            }
+        }
+
+        /// <summary>
+        /// Сброс пароля по токену
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            try
+            {
+                await _authService.ResetPasswordAsync(dto.Token, dto.NewPassword);
+                return Ok(new { message = "Пароль успешно изменён" });
+            }
+            catch (KeyNotFoundException)
+            {
+                return BadRequest("Недействительный или просроченный токен сброса");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+    }
+
+    public class RequestResetDto
+    {
+        public string Email { get; set; } = "";
+    }
+
+    public class ResetPasswordDto
+    {
+        public string Token { get; set; } = "";
+        public string NewPassword { get; set; } = "";
     }
 }

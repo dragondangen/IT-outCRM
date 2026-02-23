@@ -10,6 +10,30 @@ namespace IT_outCRM.Infrastructure.Repositories
         {
         }
 
+        public override async Task<IEnumerable<Order>> GetAllAsync()
+        {
+            return await _dbSet
+                .Include(o => o.Customer).ThenInclude(c => c!.Account)
+                .Include(o => o.Executor).ThenInclude(e => e!.Account)
+                .Include(o => o.OrderStatus)
+                .OrderByDescending(o => o.Id)
+                .ToListAsync();
+        }
+
+        public override async Task<(IEnumerable<Order> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+        {
+            var totalCount = await _dbSet.CountAsync();
+            var items = await _dbSet
+                .Include(o => o.Customer).ThenInclude(c => c!.Account)
+                .Include(o => o.Executor).ThenInclude(e => e!.Account)
+                .Include(o => o.OrderStatus)
+                .OrderByDescending(o => o.Id)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return (items, totalCount);
+        }
+
         public async Task<IEnumerable<Order>> GetOrdersByCustomerAsync(Guid customerId)
         {
             return await _dbSet

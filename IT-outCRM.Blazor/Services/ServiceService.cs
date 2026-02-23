@@ -1,15 +1,18 @@
 using System.Net.Http.Json;
 using IT_outCRM.Blazor.Models;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class ServiceService : IServiceService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<ServiceService> _logger;
 
-        public ServiceService(HttpClient httpClient)
+        public ServiceService(HttpClient httpClient, ILogger<ServiceService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -30,7 +33,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] GetAllAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "GetAllAsync error");
                 return new List<ServiceModel>();
             }
         }
@@ -45,7 +48,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] GetPagedAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "GetPagedAsync error");
                 return new PagedResult<ServiceModel>();
             }
         }
@@ -63,7 +66,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] GetByIdAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "GetByIdAsync error");
                 return null;
             }
         }
@@ -79,12 +82,12 @@ namespace IT_outCRM.Blazor.Services
                 }
                 
                 var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"[ServiceService] CreateAsync failed: {response.StatusCode} - {errorContent}");
+                _logger.LogWarning("CreateAsync failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] CreateAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "CreateAsync error");
                 return null;
             }
         }
@@ -122,12 +125,12 @@ namespace IT_outCRM.Blazor.Services
                 }
                 
                 var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"[ServiceService] UpdateAsync failed: {response.StatusCode} - {errorContent}");
+                _logger.LogWarning("UpdateAsync failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] UpdateAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "UpdateAsync error");
                 return null;
             }
         }
@@ -141,7 +144,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] DeleteAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "DeleteAsync error");
                 return false;
             }
         }
@@ -159,18 +162,18 @@ namespace IT_outCRM.Blazor.Services
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    Console.WriteLine($"[ServiceService] GetServicesByExecutorAsync: 403 Forbidden - недостаточно прав доступа");
+                    _logger.LogWarning("GetServicesByExecutorAsync: 403 Forbidden - недостаточно прав доступа");
                     throw new UnauthorizedAccessException("Недостаточно прав доступа для просмотра услуг");
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
-                    Console.WriteLine($"[ServiceService] GetServicesByExecutorAsync: 401 Unauthorized - требуется авторизация");
+                    _logger.LogWarning("GetServicesByExecutorAsync: 401 Unauthorized - требуется авторизация");
                     throw new UnauthorizedAccessException("Требуется авторизация");
                 }
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[ServiceService] GetServicesByExecutorAsync failed: {response.StatusCode} - {errorContent}");
+                    _logger.LogWarning("GetServicesByExecutorAsync failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
                     return new List<ServiceModel>();
                 }
             }
@@ -180,7 +183,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] GetServicesByExecutorAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "GetServicesByExecutorAsync error");
                 throw;
             }
         }
@@ -189,16 +192,12 @@ namespace IT_outCRM.Blazor.Services
         {
             try
             {
-                // Получаем услуги текущего пользователя (исполнителя)
-                // Для этого нужно получить ExecutorId текущего пользователя
-                // Пока используем GetAllAsync и фильтруем на клиенте
-                // В будущем можно добавить endpoint /api/services/my
-                var allServices = await GetAllAsync();
-                return allServices; // Пока возвращаем все, фильтрация будет на уровне UI
+                var result = await _httpClient.GetFromJsonAsync<List<ServiceModel>>("api/services/my-services");
+                return result ?? new List<ServiceModel>();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ServiceService] GetMyServicesAsync error: {ex.Message}");
+                _logger.LogWarning(ex, "GetMyServicesAsync error");
                 return new List<ServiceModel>();
             }
         }

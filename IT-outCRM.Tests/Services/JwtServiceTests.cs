@@ -4,6 +4,8 @@ using FluentAssertions;
 using IT_outCRM.Application.Services;
 using IT_outCRM.Domain.Entity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IT_outCRM.Tests.Services;
@@ -29,7 +31,7 @@ public class JwtServiceTests
             audience: "TestAudience",
             hours: "24");
 
-        var sut = new JwtService(config.Object);
+        var sut = new JwtService(config.Object, NullLogger<JwtService>.Instance);
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -57,7 +59,7 @@ public class JwtServiceTests
     public void GenerateToken_WithoutKey_ThrowsInvalidOperationException()
     {
         var config = CreateConfig(key: null);
-        var sut = new JwtService(config.Object);
+        var sut = new JwtService(config.Object, NullLogger<JwtService>.Instance);
         var user = new User { Id = Guid.NewGuid(), Username = "test", Email = "t@t.com", Role = "User" };
 
         var act = () => sut.GenerateToken(user);
@@ -75,7 +77,7 @@ public class JwtServiceTests
             audience: "TestAudience",
             hours: "24");
 
-        var sut = new JwtService(config.Object);
+        var sut = new JwtService(config.Object, NullLogger<JwtService>.Instance);
         var userId = Guid.NewGuid();
         var user = new User { Id = userId, Username = "test", Email = "t@t.com", Role = "User" };
 
@@ -89,7 +91,7 @@ public class JwtServiceTests
     public void GetUserIdFromToken_WithInvalidToken_ReturnsNull()
     {
         var config = CreateConfig();
-        var sut = new JwtService(config.Object);
+        var sut = new JwtService(config.Object, NullLogger<JwtService>.Instance);
 
         var result = sut.GetUserIdFromToken("not-a-valid-token");
 
@@ -100,7 +102,7 @@ public class JwtServiceTests
     public void GetUserIdFromToken_WithEmptyString_ReturnsNull()
     {
         var config = CreateConfig();
-        var sut = new JwtService(config.Object);
+        var sut = new JwtService(config.Object, NullLogger<JwtService>.Instance);
 
         var result = sut.GetUserIdFromToken("");
 
@@ -116,7 +118,7 @@ public class JwtServiceTests
             audience: "Test",
             hours: "48");
 
-        var sut = new JwtService(config.Object);
+        var sut = new JwtService(config.Object, NullLogger<JwtService>.Instance);
         var user = new User { Id = Guid.NewGuid(), Username = "u", Email = "e@e.com", Role = "User" };
 
         var token = sut.GenerateToken(user);
@@ -136,7 +138,7 @@ public class JwtServiceTests
             audience: "Test",
             hours: null);
 
-        var sut = new JwtService(config.Object);
+        var sut = new JwtService(config.Object, NullLogger<JwtService>.Instance);
         var user = new User { Id = Guid.NewGuid(), Username = "u", Email = "e@e.com", Role = "User" };
 
         var token = sut.GenerateToken(user);

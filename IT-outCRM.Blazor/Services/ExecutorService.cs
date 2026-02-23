@@ -1,15 +1,18 @@
 using IT_outCRM.Blazor.Models;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class ExecutorService : IExecutorService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<ExecutorService> _logger;
 
-        public ExecutorService(HttpClient httpClient)
+        public ExecutorService(HttpClient httpClient, ILogger<ExecutorService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -26,12 +29,12 @@ namespace IT_outCRM.Blazor.Services
             try
             {
                 var result = await _httpClient.GetFromJsonAsync<List<ExecutorModel>>("api/executors");
-                Console.WriteLine($"[ExecutorService] Loaded {result?.Count ?? 0} executors");
+                _logger.LogDebug("Loaded {Count} executors", result?.Count ?? 0);
                 return result ?? new List<ExecutorModel>();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ExecutorService] Error loading executors: {ex.Message}");
+                _logger.LogWarning(ex, "Error loading executors");
                 return new List<ExecutorModel>();
             }
         }
@@ -68,13 +71,13 @@ namespace IT_outCRM.Blazor.Services
                 else 
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[ExecutorService] Create failed: {response.StatusCode} - {errorContent}");
+                    _logger.LogWarning("Create failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
                 }
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ExecutorService] Error creating executor: {ex.Message}");
+                _logger.LogWarning(ex, "Error creating executor");
                 throw;
             }
         }
@@ -102,13 +105,13 @@ namespace IT_outCRM.Blazor.Services
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[ExecutorService] Update failed: {response.StatusCode} - {errorContent}");
+                    _logger.LogWarning("Update failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
                 }
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ExecutorService] Error updating executor: {ex.Message}");
+                _logger.LogWarning(ex, "Error updating executor");
                 return null;
             }
         }
@@ -122,7 +125,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ExecutorService] Error deleting executor: {ex.Message}");
+                _logger.LogWarning(ex, "Error deleting executor");
                 return false;
             }
         }

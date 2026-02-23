@@ -1,0 +1,388 @@
+@page "/services-catalog"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@inject IServiceService ServiceService
+@inject IOrderService OrderService
+@inject IDealService DealService
+@inject ICustomerService CustomerService
+@inject ITokenStorage TokenStorage
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Каталог услуг - IT-outCRM</PageTitle>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <div class="container-fluid mt-4">
+            <div class="catalog-header">
+                <div>
+                    <h2><i class="bi bi-shop"></i> Каталог услуг</h2>
+                    <p class="text-muted">Выберите услугу и оформите заказ</p>
+                </div>
+                <div class="catalog-search">
+                    <div class="search-box">
+                        <i class="bi bi-search"></i>
+                        <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Поиск по названию..." class="form-control" />
+                    </div>
+                    <select class="form-select category-filter" @bind="selectedCategory">
+                        <option value="">Все категории</option>
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat">@cat</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>@successMessage
+                    <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="loading-container">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3">Загрузка каталога...</p>
+                </div>
+            }
+            else if (!filteredServices.Any())
+            {
+                <div class="empty-state">
+                    <i class="bi bi-shop-window"></i>
+                    <h3>Услуги не найдены</h3>
+                    <p class="text-muted">Попробуйте изменить параметры поиска</p>
+                </div>
+            }
+            else
+            {
+                <div class="services-grid">
+                    @foreach (var service in filteredServices)
+                    {
+                        <div class="service-card @(service.IsActive ? "" : "inactive")">
+                            <div class="service-card-header">
+                                <div class="service-category">
+                                    <i class="bi bi-tag"></i> @(string.IsNullOrEmpty(service.Category) ? "Общее" : service.Category)
+                                </div>
+                                @if (service.IsActive)
+                                {
+                                    <span class="badge-active">Доступна</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-inactive">Недоступна</span>
+                                }
+                            </div>
+
+                            <h3 class="service-card-title">@service.Name</h3>
+
+                            <p class="service-card-desc">
+                                @(string.IsNullOrEmpty(service.Description) ? "Описание отсутствует" : (service.Description.Length > 120 ? service.Description[..120] + "..." : service.Description))
+                            </p>
+
+                            <div class="service-card-meta">
+                                <div class="meta-item">
+                                    <i class="bi bi-person-workspace"></i>
+                                    <span>@(string.IsNullOrEmpty(service.ExecutorName) ? "—" : service.ExecutorName)</span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="bi bi-clock"></i>
+                                    <span>@service.Duration ч.</span>
+                                </div>
+                            </div>
+
+                            <div class="service-card-footer">
+                                <div class="service-price">@service.Price.ToString("#,##0") ₽</div>
+                                @if (service.IsActive)
+                                {
+                                    <button class="btn btn-order" @onclick="() => OpenOrderModal(service)" disabled="@isOrdering">
+                                        <i class="bi bi-cart-plus"></i> Заказать
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* === Order Modal === *@
+        @if (showOrderModal && selectedService != null)
+        {
+            <div class="modal-backdrop" @onclick="CloseOrderModal"></div>
+            <div class="order-modal">
+                <div class="order-modal-header">
+                    <h3><i class="bi bi-cart-check"></i> Оформление заказа</h3>
+                    <button class="btn-close-modal" @onclick="CloseOrderModal"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <div class="order-modal-body">
+                    <div class="order-service-info">
+                        <h4>@selectedService.Name</h4>
+                        <p class="text-muted">@selectedService.ExecutorName</p>
+                        <div class="order-service-details">
+                            <span><i class="bi bi-clock"></i> @selectedService.Duration ч.</span>
+                            <span class="order-price">@selectedService.Price.ToString("#,##0") ₽</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Название заказа</label>
+                        <input type="text" class="form-control" @bind="orderName" placeholder="Например: Заказ на @selectedService.Name" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Описание / пожелания</label>
+                        <textarea class="form-control" rows="3" @bind="orderDescription" placeholder="Опишите подробности заказа..."></textarea>
+                    </div>
+                </div>
+                <div class="order-modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseOrderModal">Отмена</button>
+                    <button class="btn btn-order-confirm" @onclick="SubmitOrder" disabled="@isOrdering">
+                        @if (isOrdering)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        <i class="bi bi-check-circle"></i> Подтвердить заказ
+                    </button>
+                </div>
+            </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .catalog-header {
+        display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;
+        padding-bottom: 20px; border-bottom: 2px solid #e9ecef; flex-wrap: wrap; gap: 15px;
+    }
+    .catalog-search { display: flex; gap: 12px; flex-wrap: wrap; }
+    .search-box { position: relative; }
+    .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #adb5bd; }
+    .search-box input { padding-left: 42px; border-radius: 10px; min-width: 260px; border: 2px solid #e9ecef; }
+    .search-box input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.12); }
+    .category-filter { border-radius: 10px; border: 2px solid #e9ecef; min-width: 180px; }
+    .category-filter:focus { border-color: #667eea; }
+
+    .loading-container, .empty-state {
+        text-align: center; padding: 60px 20px; background: white; border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .empty-state i { font-size: 4rem; color: #ddd; display: block; margin-bottom: 20px; }
+
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+
+    .service-card {
+        background: white; border-radius: 16px; padding: 24px; border: 1px solid #e9ecef;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06); transition: all 0.3s; display: flex; flex-direction: column;
+    }
+    .service-card:hover { transform: translateY(-4px); box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+    .service-card.inactive { opacity: 0.6; }
+
+    .service-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .service-category { font-size: 0.82rem; color: #6c757d; display: flex; align-items: center; gap: 4px; }
+    .badge-active { background: #d1e7dd; color: #0f5132; font-size: 0.78rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+    .badge-inactive { background: #f8d7da; color: #721c24; font-size: 0.78rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+
+    .service-card-title { font-size: 1.15rem; font-weight: 700; color: #1a1a2e; margin: 0 0 10px; }
+    .service-card-desc { font-size: 0.88rem; color: #6c757d; line-height: 1.5; flex: 1; margin-bottom: 16px; }
+
+    .service-card-meta { display: flex; gap: 16px; margin-bottom: 18px; }
+    .meta-item { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #495057; }
+    .meta-item i { color: #667eea; }
+
+    .service-card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+    .service-price { font-size: 1.4rem; font-weight: 800; color: #1a1a2e; }
+
+    .btn-order {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;
+        border-radius: 10px; padding: 10px 20px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .btn-order:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102,126,234,0.4); color: white; }
+
+    /* Modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .order-modal {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1001;
+        background: white; border-radius: 18px; width: 90%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .order-modal-header {
+        padding: 20px 24px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;
+    }
+    .order-modal-header h3 { margin: 0; font-size: 1.25rem; font-weight: 700; color: #1a1a2e; display: flex; align-items: center; gap: 8px; }
+    .btn-close-modal { background: none; border: none; color: #6c757d; font-size: 1.2rem; cursor: pointer; padding: 4px; }
+    .order-modal-body { padding: 24px; }
+    .order-service-info { background: #f8f9fa; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+    .order-service-info h4 { margin: 0 0 4px; font-size: 1.1rem; font-weight: 700; color: #1a1a2e; }
+    .order-service-details { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+    .order-service-details span { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #495057; }
+    .order-price { font-size: 1.25rem; font-weight: 800; color: #667eea; }
+    .order-modal-footer { padding: 16px 24px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 10px; }
+    .btn-order-confirm {
+        background: linear-gradient(135deg, #198754 0%, #20c997 100%); color: white; border: none;
+        border-radius: 10px; padding: 10px 20px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+    }
+    .btn-order-confirm:hover:not(:disabled) { box-shadow: 0 4px 15px rgba(25,135,84,0.4); color: white; }
+
+    @@media (max-width: 768px) {
+        .catalog-header { flex-direction: column; }
+        .services-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+@code {
+    private List<ServiceModel> allServices = new();
+    private List<string> categories = new();
+    private string searchQuery = string.Empty;
+    private string selectedCategory = string.Empty;
+    private bool isLoading = true;
+    private bool isOrdering = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    private bool showOrderModal = false;
+    private ServiceModel? selectedService;
+    private string orderName = string.Empty;
+    private string orderDescription = string.Empty;
+
+    private List<ServiceModel> filteredServices =>
+        allServices.Where(s =>
+            (string.IsNullOrEmpty(searchQuery) || s.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+             s.ExecutorName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(selectedCategory) || s.Category == selectedCategory)
+        ).OrderByDescending(s => s.IsActive).ThenBy(s => s.Name).ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await Task.Delay(200);
+        var token = await TokenStorage.GetTokenAsync();
+
+        if (string.IsNullOrEmpty(token))
+        {
+            errorMessage = "Авторизуйтесь для просмотра каталога";
+            isLoading = false;
+            StateHasChanged();
+            return;
+        }
+
+        ServiceService.SetToken(token);
+        OrderService.SetToken(token);
+        DealService.SetToken(token);
+        CustomerService.SetToken(token);
+
+        try
+        {
+            allServices = await ServiceService.GetAllAsync();
+            categories = allServices
+                .Where(s => !string.IsNullOrEmpty(s.Category))
+                .Select(s => s.Category)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenOrderModal(ServiceModel service)
+    {
+        selectedService = service;
+        orderName = $"Заказ: {service.Name}";
+        orderDescription = string.Empty;
+        errorMessage = string.Empty;
+        showOrderModal = true;
+    }
+
+    private void CloseOrderModal()
+    {
+        showOrderModal = false;
+        selectedService = null;
+    }
+
+    private async Task SubmitOrder()
+    {
+        if (selectedService == null) return;
+
+        if (string.IsNullOrWhiteSpace(orderName))
+        {
+            errorMessage = "Укажите название заказа";
+            return;
+        }
+
+        isOrdering = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var order = new CreateOrderModel
+            {
+                Name = orderName,
+                Description = orderDescription,
+                Price = selectedService.Price,
+                ExecutorId = selectedService.ExecutorId,
+            };
+
+            var result = await OrderService.CreateAsync(order);
+
+            if (result != null)
+            {
+                try
+                {
+                    var dealModel = new CreateDealFromOrderModel
+                    {
+                        OrderId = result.Id,
+                        ExecutorId = selectedService.ExecutorId,
+                        ServiceId = selectedService.Id,
+                        AgreedPrice = selectedService.Price,
+                        Terms = $"Услуга: {selectedService.Name}. {orderDescription}"
+                    };
+                    await DealService.CreateFromOrderAsync(dealModel);
+                    successMessage = $"Заказ \"{orderName}\" создан и сделка оформлена!";
+                }
+                catch
+                {
+                    successMessage = $"Заказ \"{orderName}\" успешно создан!";
+                }
+                CloseOrderModal();
+            }
+            else
+            {
+                errorMessage = "Не удалось создать заказ";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isOrdering = false;
+            StateHasChanged();
+        }
+    }
+}

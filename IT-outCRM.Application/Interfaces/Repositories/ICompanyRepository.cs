@@ -6,6 +6,7 @@ namespace IT_outCRM.Application.Interfaces.Repositories
     {
         Task<Company?> GetCompanyByInnAsync(string inn);
         Task<Company?> GetCompanyWithContactPersonAsync(Guid id);
+        Task<Company?> GetByContactPersonIdAsync(Guid contactPersonId);
     }
 }
 

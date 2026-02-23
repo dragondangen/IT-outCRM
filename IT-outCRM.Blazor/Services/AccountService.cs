@@ -1,15 +1,18 @@
 using IT_outCRM.Blazor.Models;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class AccountService : IAccountService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<AccountService> _logger;
 
-        public AccountService(HttpClient httpClient)
+        public AccountService(HttpClient httpClient, ILogger<AccountService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -26,12 +29,12 @@ namespace IT_outCRM.Blazor.Services
             try
             {
                 var result = await _httpClient.GetFromJsonAsync<List<AccountModel>>("api/accounts");
-                Console.WriteLine($"[AccountService] Loaded {result?.Count ?? 0} accounts");
+                _logger.LogDebug("Loaded {Count} accounts", result?.Count ?? 0);
                 return result ?? new List<AccountModel>();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AccountService] Error loading accounts: {ex.Message}");
+                _logger.LogWarning(ex, "Error loading accounts");
                 return new List<AccountModel>();
             }
         }
@@ -44,7 +47,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AccountService] Error getting account {id}: {ex.Message}");
+                _logger.LogWarning(ex, "Error getting account {Id}", id);
                 return null;
             }
         }
@@ -53,9 +56,7 @@ namespace IT_outCRM.Blazor.Services
         {
             try
             {
-                // Убедимся, что отправляем правильные данные
-                Console.WriteLine($"[AccountService] Creating account for company {model.CompanyName}...");
-                
+                _logger.LogDebug("Creating account for company {CompanyName}", model.CompanyName);
                 var response = await _httpClient.PostAsJsonAsync("api/accounts", model);
                 if (response.IsSuccessStatusCode)
                 {
@@ -64,13 +65,13 @@ namespace IT_outCRM.Blazor.Services
                 else
                 {
                     var err = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[AccountService] Create failed: {response.StatusCode} - {err}");
+                    _logger.LogWarning("Create failed: {StatusCode} - {Error}", response.StatusCode, err);
                 }
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AccountService] Exception creating account: {ex.Message}");
+                _logger.LogWarning(ex, "Exception creating account");
                 throw;
             }
         }
@@ -90,7 +91,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AccountService] Error updating account: {ex.Message}");
+                _logger.LogWarning(ex, "Error updating account");
                 throw;
             }
         }
@@ -104,7 +105,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AccountService] Error deleting account: {ex.Message}");
+                _logger.LogWarning(ex, "Error deleting account");
                 return false;
             }
         }

@@ -49,8 +49,12 @@ namespace IT_outCRM.Infrastructure.Repositories
         /// </summary>
         public virtual async Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
         {
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            pageNumber = Math.Max(pageNumber, 1);
+
             var totalCount = await _dbSet.CountAsync();
             var items = await _dbSet
+                .OrderBy(e => EF.Property<Guid>(e, "Id"))
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

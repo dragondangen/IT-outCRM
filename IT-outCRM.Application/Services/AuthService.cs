@@ -315,5 +315,48 @@ namespace IT_outCRM.Application.Services
             await _unitOfWork.Users.DeleteAsync(user);
             await _unitOfWork.SaveChangesAsync();
         }
+
+        public async Task<string> RequestPasswordResetAsync(string email)
+        {
+            var users = await _unitOfWork.Users.GetAllAsync();
+            var user = users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            if (user == null)
+                throw new KeyNotFoundException("Пользователь с таким email не найден");
+
+            var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                .Replace("+", "").Replace("/", "").Replace("=", "")[..20];
+
+            user.PasswordResetToken = token;
+            user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            return token;
+        }
+
+        public async Task ResetPasswordAsync(string token, string newPassword)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentException("Токен сброса обязателен");
+
+            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+                throw new ArgumentException("Пароль должен содержать минимум 6 символов");
+
+            var users = await _unitOfWork.Users.GetAllAsync();
+            var user = users.FirstOrDefault(u =>
+                u.PasswordResetToken == token &&
+                u.PasswordResetTokenExpiry > DateTime.UtcNow);
+
+            if (user == null)
+                throw new KeyNotFoundException("Недействительный или просроченный токен сброса");
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.PasswordResetToken = null;
+            user.PasswordResetTokenExpiry = null;
+
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+        }
     }
 }

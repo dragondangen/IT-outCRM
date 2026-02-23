@@ -1,6 +1,7 @@
 @page "/customers"
 @using IT_outCRM.Blazor.Services
 @using IT_outCRM.Blazor.Models
+@using IT_outCRM.Blazor.Components.Shared
 @using Microsoft.AspNetCore.Authorization
 @inject ICustomerService CustomerService
 @inject ITokenStorage TokenStorage
@@ -16,11 +17,18 @@
             <div class="page-header">
                 <div>
                     <h2><i class="bi bi-people"></i> Управление клиентами</h2>
-                    <p class="text-muted">Список всех клиентов системы</p>
+                    <p class="text-muted">Список всех клиентов системы (@customers.Count)</p>
                 </div>
-                <button class="btn btn-primary btn-lg" @onclick="CreateCustomer">
-                    <i class="bi bi-plus-circle"></i> Добавить клиента
-                </button>
+                <div class="d-flex gap-2 align-items-center">
+                    <div class="input-group" style="width:300px">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="Поиск..."
+                               @bind="searchQuery" @bind:event="oninput" />
+                    </div>
+                    <button class="btn btn-primary btn-lg" @onclick="CreateCustomer">
+                        <i class="bi bi-plus-circle"></i> Добавить клиента
+                    </button>
+                </div>
             </div>
 
             @if (!string.IsNullOrEmpty(errorMessage))
@@ -42,20 +50,27 @@
             }
             else
             {
-                @if (customers.Any())
+                @if (FilteredCustomers.Any())
                 {
-                    <!-- Таблица клиентов -->
+                    <Pagination TItem="CustomerModel"
+                                TotalCount="FilteredCustomers.Count"
+                                CurrentPage="currentPage"
+                                PageSize="pageSize"
+                                OnPageChanged="p => { currentPage = p; StateHasChanged(); }"
+                                OnPageSizeChanged_Callback="s => { pageSize = s; currentPage = 1; StateHasChanged(); }" />
+
                     <div class="table-wrapper">
                         <table class="customers-table">
                             <thead>
                                 <tr>
                                     <th>Имя клиента</th>
                                     <th>Компания</th>
+                                    <th>Аккаунт</th>
                                     <th>Действия</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var customer in customers)
+                                @foreach (var customer in PagedCustomers)
                                 {
                                     var currentCustomerId = customer.Id;
                                     <tr>
@@ -80,6 +95,11 @@
                                             </span>
                                         </td>
                                         <td>
+                                            <span class="account-badge">
+                                                <i class="bi bi-diagram-3"></i> @(string.IsNullOrEmpty(customer.AccountName) ? "—" : customer.AccountName)
+                                            </span>
+                                        </td>
+                                        <td>
                                             <div class="table-actions">
                                                 <button class="btn btn-edit" 
                                                         @onclick="@(() => EditCustomer(currentCustomerId))"
@@ -98,16 +118,26 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <Pagination TItem="CustomerModel"
+                                TotalCount="FilteredCustomers.Count"
+                                CurrentPage="currentPage"
+                                PageSize="pageSize"
+                                OnPageChanged="p => { currentPage = p; StateHasChanged(); }"
+                                OnPageSizeChanged_Callback="s => { pageSize = s; currentPage = 1; StateHasChanged(); }" />
                 }
                 else
                 {
                     <div class="empty-state">
                         <i class="bi bi-people"></i>
-                        <h3>Нет клиентов</h3>
-                        <p class="text-muted">Добавьте клиентов для начала работы</p>
-                        <button class="btn btn-primary" @onclick="CreateCustomer">
-                            <i class="bi bi-plus-circle"></i> Добавить клиента
-                        </button>
+                        <h3>@(string.IsNullOrEmpty(searchQuery) ? "Нет клиентов" : "Ничего не найдено")</h3>
+                        <p class="text-muted">@(string.IsNullOrEmpty(searchQuery) ? "Добавьте клиентов для начала работы" : "Попробуйте изменить запрос")</p>
+                        @if (string.IsNullOrEmpty(searchQuery))
+                        {
+                            <button class="btn btn-primary" @onclick="CreateCustomer">
+                                <i class="bi bi-plus-circle"></i> Добавить клиента
+                            </button>
+                        }
                     </div>
                 }
             }
@@ -227,6 +257,18 @@
         font-weight: 500;
     }
 
+    .account-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #f0e6ff;
+        color: #6f42c1;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
     .table-actions {
         display: flex;
         gap: 8px;
@@ -289,6 +331,21 @@
     private List<CustomerModel> customers = new();
     private bool isLoading = true;
     private string errorMessage = string.Empty;
+    private string searchQuery = string.Empty;
+    private int currentPage = 1;
+    private int pageSize = 25;
+
+    private List<CustomerModel> FilteredCustomers => string.IsNullOrWhiteSpace(searchQuery)
+        ? customers
+        : customers.Where(c =>
+            (c.AccountName ?? "").Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+            (c.CompanyName ?? "").Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
+        ).ToList();
+
+    private List<CustomerModel> PagedCustomers => FilteredCustomers
+        .Skip((currentPage - 1) * pageSize)
+        .Take(pageSize)
+        .ToList();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

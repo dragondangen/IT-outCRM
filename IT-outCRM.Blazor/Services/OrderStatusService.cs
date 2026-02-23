@@ -1,15 +1,18 @@
 using IT_outCRM.Blazor.Models;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class OrderStatusService : IOrderStatusService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<OrderStatusService> _logger;
 
-        public OrderStatusService(HttpClient httpClient)
+        public OrderStatusService(HttpClient httpClient, ILogger<OrderStatusService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -26,12 +29,12 @@ namespace IT_outCRM.Blazor.Services
             try
             {
                 var result = await _httpClient.GetFromJsonAsync<List<OrderStatusModel>>("api/orderstatuses");
-                Console.WriteLine($"[OrderStatusService] Loaded {result?.Count ?? 0} statuses");
+                _logger.LogDebug("Loaded {Count} statuses", result?.Count ?? 0);
                 return result ?? new List<OrderStatusModel>();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OrderStatusService] Error loading order statuses: {ex.Message}");
+                _logger.LogWarning(ex, "Error loading order statuses");
                 return new List<OrderStatusModel>();
             }
         }
@@ -61,7 +64,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OrderStatusService] Error creating status: {ex.Message}");
+                _logger.LogWarning(ex, "Error creating status");
                 throw;
             }
         }

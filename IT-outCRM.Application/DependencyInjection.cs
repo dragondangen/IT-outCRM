@@ -27,6 +27,8 @@ namespace IT_outCRM.Application
             services.AddScoped<IExecutorService, ExecutorService>();
             services.AddScoped<IContactPersonService, ContactPersonService>();
             services.AddScoped<IServiceService, ServiceService>();
+            services.AddScoped<IDealService, DealService>();
+            services.AddScoped<IAnalyticsService, AnalyticsService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IJwtService, JwtService>();
 

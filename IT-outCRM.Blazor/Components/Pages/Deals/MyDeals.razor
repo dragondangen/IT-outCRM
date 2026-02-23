@@ -1,0 +1,310 @@
+@page "/my-deals"
+@using IT_outCRM.Blazor.Services
+@using IT_outCRM.Blazor.Models
+@inject IDealService DealService
+@inject ITokenStorage TokenStorage
+@inject NavigationManager Navigation
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Мои сделки - IT-outCRM</PageTitle>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <div class="container-fluid mt-4">
+            <div class="deals-header">
+                <div>
+                    <h2><i class="bi bi-cash-stack"></i> Мои сделки</h2>
+                    <p class="text-muted">Управление сделками с контрагентами</p>
+                </div>
+                <div class="deals-filters">
+                    <div class="search-box">
+                        <i class="bi bi-search"></i>
+                        <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Поиск..." class="form-control" />
+                    </div>
+                    <select class="form-select status-filter" @bind="selectedStatus">
+                        <option value="">Все статусы</option>
+                        <option value="Новая">Новая</option>
+                        <option value="Предложена">Предложена</option>
+                        <option value="Согласована">Согласована</option>
+                        <option value="В работе">В работе</option>
+                        <option value="На проверке">На проверке</option>
+                        <option value="Завершена">Завершена</option>
+                        <option value="Отменена">Отменена</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="loading-container">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3">Загрузка сделок...</p>
+                </div>
+            }
+            else
+            {
+                <div class="deals-stats">
+                    <div class="stat-card">
+                        <div class="stat-value">@allDeals.Count</div>
+                        <div class="stat-label">Всего</div>
+                    </div>
+                    <div class="stat-card stat-active">
+                        <div class="stat-value">@allDeals.Count(d => d.Status == "В работе")</div>
+                        <div class="stat-label">В работе</div>
+                    </div>
+                    <div class="stat-card stat-review">
+                        <div class="stat-value">@allDeals.Count(d => d.Status == "На проверке")</div>
+                        <div class="stat-label">На проверке</div>
+                    </div>
+                    <div class="stat-card stat-done">
+                        <div class="stat-value">@allDeals.Count(d => d.Status == "Завершена")</div>
+                        <div class="stat-label">Завершено</div>
+                    </div>
+                    <div class="stat-card stat-sum">
+                        <div class="stat-value">@allDeals.Where(d => d.Status == "Завершена").Sum(d => d.AgreedPrice).ToString("#,##0") ₽</div>
+                        <div class="stat-label">Выручка</div>
+                    </div>
+                </div>
+
+                @if (!filteredDeals.Any())
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-cash-stack"></i>
+                        <h3>Сделки не найдены</h3>
+                        <p class="text-muted">У вас пока нет сделок с таким фильтром</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="deals-grid">
+                        @foreach (var deal in filteredDeals)
+                        {
+                            <div class="deal-card @GetStatusClass(deal.Status)" @onclick="() => OpenDeal(deal.Id)">
+                                <div class="deal-card-header">
+                                    <span class="deal-status @GetStatusBadgeClass(deal.Status)">@deal.Status</span>
+                                    <span class="deal-date">@deal.CreatedAt.ToString("dd.MM.yyyy")</span>
+                                </div>
+
+                                <h3 class="deal-title">@deal.OrderName</h3>
+
+                                <div class="deal-parties">
+                                    <div class="party">
+                                        <i class="bi bi-person-fill"></i>
+                                        <span>@(string.IsNullOrEmpty(deal.CustomerName) ? "—" : deal.CustomerName)</span>
+                                    </div>
+                                    <i class="bi bi-arrow-right party-arrow"></i>
+                                    <div class="party">
+                                        <i class="bi bi-person-gear"></i>
+                                        <span>@(string.IsNullOrEmpty(deal.ExecutorName) ? "—" : deal.ExecutorName)</span>
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(deal.ServiceName))
+                                {
+                                    <div class="deal-service">
+                                        <i class="bi bi-briefcase"></i> @deal.ServiceName
+                                    </div>
+                                }
+
+                                <div class="deal-card-footer">
+                                    <div class="deal-price">@deal.AgreedPrice.ToString("#,##0") ₽</div>
+                                    @if (deal.Deadline.HasValue)
+                                    {
+                                        <div class="deal-deadline">
+                                            <i class="bi bi-calendar-event"></i> @deal.Deadline.Value.ToString("dd.MM.yyyy")
+                                        </div>
+                                    }
+                                    @if (deal.CustomerRating.HasValue || deal.ExecutorRating.HasValue)
+                                    {
+                                        <div class="deal-rating">
+                                            <i class="bi bi-star-fill"></i>
+                                            @if (deal.CustomerRating.HasValue)
+                                            {
+                                                <span>@deal.CustomerRating</span>
+                                            }
+                                            @if (deal.ExecutorRating.HasValue)
+                                            {
+                                                <span>/ @deal.ExecutorRating</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .deals-header {
+        display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;
+        padding-bottom: 16px; border-bottom: 2px solid #e9ecef; flex-wrap: wrap; gap: 15px;
+    }
+    .deals-filters { display: flex; gap: 12px; flex-wrap: wrap; }
+    .search-box { position: relative; }
+    .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #adb5bd; }
+    .search-box input { padding-left: 42px; border-radius: 10px; min-width: 220px; border: 2px solid #e9ecef; }
+    .search-box input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.12); }
+    .status-filter { border-radius: 10px; border: 2px solid #e9ecef; min-width: 160px; }
+
+    .deals-stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-card {
+        background: white; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 120px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #6c757d; text-align: center;
+    }
+    .stat-card.stat-active { border-left-color: #0d6efd; }
+    .stat-card.stat-review { border-left-color: #fd7e14; }
+    .stat-card.stat-done { border-left-color: #198754; }
+    .stat-card.stat-sum { border-left-color: #667eea; }
+    .stat-value { font-size: 1.5rem; font-weight: 800; color: #1a1a2e; }
+    .stat-label { font-size: 0.8rem; color: #6c757d; font-weight: 500; margin-top: 4px; }
+
+    .loading-container, .empty-state {
+        text-align: center; padding: 60px 20px; background: white; border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .empty-state i { font-size: 4rem; color: #ddd; display: block; margin-bottom: 20px; }
+
+    .deals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+
+    .deal-card {
+        background: white; border-radius: 14px; padding: 20px; border: 1px solid #e9ecef;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s;
+        border-left: 4px solid #6c757d;
+    }
+    .deal-card:hover { transform: translateY(-3px); box-shadow: 0 6px 24px rgba(0,0,0,0.1); }
+    .deal-card.status-work { border-left-color: #0d6efd; }
+    .deal-card.status-review { border-left-color: #fd7e14; }
+    .deal-card.status-done { border-left-color: #198754; }
+    .deal-card.status-cancel { border-left-color: #dc3545; }
+    .deal-card.status-agreed { border-left-color: #20c997; }
+    .deal-card.status-proposed { border-left-color: #6f42c1; }
+
+    .deal-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .deal-status {
+        font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+    }
+    .deal-status.badge-new { background: #e2e3e5; color: #41464b; }
+    .deal-status.badge-proposed { background: #e8d5f5; color: #6f42c1; }
+    .deal-status.badge-agreed { background: #d1f2eb; color: #0f7b5f; }
+    .deal-status.badge-work { background: #cfe2ff; color: #084298; }
+    .deal-status.badge-review { background: #ffe5d0; color: #984c0c; }
+    .deal-status.badge-done { background: #d1e7dd; color: #0f5132; }
+    .deal-status.badge-cancel { background: #f8d7da; color: #842029; }
+    .deal-date { font-size: 0.8rem; color: #adb5bd; }
+
+    .deal-title { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin: 0 0 12px; }
+
+    .deal-parties {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.85rem; color: #495057;
+    }
+    .party { display: flex; align-items: center; gap: 4px; }
+    .party i { color: #667eea; }
+    .party-arrow { color: #adb5bd; font-size: 0.75rem; }
+
+    .deal-service { font-size: 0.82rem; color: #6c757d; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .deal-service i { color: #fd7e14; }
+
+    .deal-card-footer {
+        display: flex; justify-content: space-between; align-items: center; padding-top: 12px;
+        border-top: 1px solid #f0f0f0; flex-wrap: wrap; gap: 8px;
+    }
+    .deal-price { font-size: 1.15rem; font-weight: 800; color: #1a1a2e; }
+    .deal-deadline { font-size: 0.82rem; color: #6c757d; display: flex; align-items: center; gap: 4px; }
+    .deal-rating { font-size: 0.85rem; color: #fd7e14; display: flex; align-items: center; gap: 4px; }
+
+    @@media (max-width: 768px) {
+        .deals-header { flex-direction: column; }
+        .deals-grid { grid-template-columns: 1fr; }
+        .deals-stats { flex-direction: column; }
+    }
+</style>
+
+@code {
+    private List<DealModel> allDeals = new();
+    private string searchQuery = string.Empty;
+    private string selectedStatus = string.Empty;
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    private List<DealModel> filteredDeals => allDeals.Where(d =>
+        (string.IsNullOrEmpty(searchQuery) ||
+         d.OrderName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+         d.CustomerName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+         d.ExecutorName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrEmpty(selectedStatus) || d.Status == selectedStatus)
+    ).ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(200);
+
+        var token = await TokenStorage.GetTokenAsync();
+        if (string.IsNullOrEmpty(token))
+        {
+            errorMessage = "Авторизуйтесь для просмотра сделок";
+            isLoading = false;
+            StateHasChanged();
+            return;
+        }
+
+        DealService.SetToken(token);
+
+        try
+        {
+            allDeals = await DealService.GetMyDealsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenDeal(Guid dealId)
+    {
+        Navigation.NavigateTo($"/deals/{dealId}");
+    }
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "В работе" => "status-work",
+        "На проверке" => "status-review",
+        "Завершена" => "status-done",
+        "Отменена" => "status-cancel",
+        "Согласована" => "status-agreed",
+        "Предложена" => "status-proposed",
+        _ => ""
+    };
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Новая" => "badge-new",
+        "Предложена" => "badge-proposed",
+        "Согласована" => "badge-agreed",
+        "В работе" => "badge-work",
+        "На проверке" => "badge-review",
+        "Завершена" => "badge-done",
+        "Отменена" => "badge-cancel",
+        _ => "badge-new"
+    };
+}

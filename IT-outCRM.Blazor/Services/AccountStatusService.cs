@@ -1,15 +1,18 @@
 using System.Net.Http.Json;
 using IT_outCRM.Blazor.Models;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class AccountStatusService : IAccountStatusService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<AccountStatusService> _logger;
 
-        public AccountStatusService(HttpClient httpClient)
+        public AccountStatusService(HttpClient httpClient, ILogger<AccountStatusService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -30,7 +33,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading account statuses: {ex.Message}");
+                _logger.LogWarning(ex, "Error loading account statuses");
                 return new List<AccountStatusModel>();
             }
         }

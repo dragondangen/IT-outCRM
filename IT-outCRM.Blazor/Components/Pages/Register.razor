@@ -1,6 +1,7 @@
 @page "/register"
 @using IT_outCRM.Blazor.Models
 @using IT_outCRM.Blazor.Services
+@using System.ComponentModel.DataAnnotations
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject ILogger<Register> Logger
@@ -19,27 +20,34 @@
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="reg-alert">
+                <div class="reg-alert reg-alert-error">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
                 </div>
             }
 
-            <EditForm Model="RegisterModel" OnValidSubmit="HandleRegister" FormName="registerForm">
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="reg-alert reg-alert-success">
+                    <i class="bi bi-check-circle-fill me-2"></i>@successMessage
+                </div>
+            }
+
+            <EditForm EditContext="editContext" OnSubmit="HandleRegister" FormName="registerForm">
                 <DataAnnotationsValidator />
 
                 @* === Step indicator === *@
                 <div class="reg-steps">
-                    <button type="button" class="reg-step @(step == 1 ? "active" : "") @(step > 1 ? "done" : "")" @onclick="() => step = 1">
-                        <span class="reg-step-num">1</span>
+                    <button type="button" class="reg-step @(step == 1 ? "active" : "") @(step > 1 ? "done" : "")" @onclick="() => GoToStep(1)">
+                        <span class="reg-step-num">@(step > 1 ? "" : "1")<i class="bi @(step > 1 ? "bi-check" : "")"></i></span>
                         <span class="reg-step-label">Аккаунт</span>
                     </button>
                     <div class="reg-step-line @(step > 1 ? "done" : "")"></div>
-                    <button type="button" class="reg-step @(step == 2 ? "active" : "") @(step > 2 ? "done" : "")" @onclick="() => { if (step > 1) step = 2; }">
-                        <span class="reg-step-num">2</span>
+                    <button type="button" class="reg-step @(step == 2 ? "active" : "") @(step > 2 ? "done" : "")" @onclick="() => GoToStep(2)">
+                        <span class="reg-step-num">@(step > 2 ? "" : "2")<i class="bi @(step > 2 ? "bi-check" : "")"></i></span>
                         <span class="reg-step-label">Компания</span>
                     </button>
                     <div class="reg-step-line @(step > 2 ? "done" : "")"></div>
-                    <button type="button" class="reg-step @(step == 3 ? "active" : "")" @onclick="() => { if (step > 2) step = 3; }">
+                    <button type="button" class="reg-step @(step == 3 ? "active" : "")" @onclick="() => GoToStep(3)">
                         <span class="reg-step-num">3</span>
                         <span class="reg-step-label">Тип</span>
                     </button>
@@ -48,43 +56,62 @@
                 @* === Step 1: Account === *@
                 <div class="reg-step-content" style="display: @(step == 1 ? "block" : "none")">
                     <div class="mb-3">
-                        <label class="reg-label" for="username">Имя пользователя</label>
-                        <div class="reg-input-group">
+                        <label class="reg-label" for="username">Имя пользователя <span class="req">*</span></label>
+                        <div class="reg-input-group @(GetFieldClass(nameof(Model.Username)))">
                             <i class="bi bi-person"></i>
-                            <InputText id="username" class="form-control reg-input" @bind-Value="RegisterModel!.Username" placeholder="user123" />
+                            <InputText id="username" class="form-control reg-input" @bind-Value="Model.Username" placeholder="user123" />
                         </div>
-                        <ValidationMessage For="@(() => RegisterModel!.Username)" class="reg-validation" />
+                        <ValidationMessage For="@(() => Model.Username)" class="reg-field-error" />
                     </div>
 
                     <div class="mb-3">
-                        <label class="reg-label" for="email">Email</label>
-                        <div class="reg-input-group">
+                        <label class="reg-label" for="email">Email <span class="req">*</span></label>
+                        <div class="reg-input-group @(GetFieldClass(nameof(Model.Email)))">
                             <i class="bi bi-envelope"></i>
-                            <InputText id="email" type="email" class="form-control reg-input" @bind-Value="RegisterModel!.Email" placeholder="user@example.com" />
+                            <InputText id="email" type="email" class="form-control reg-input" @bind-Value="Model.Email" placeholder="user@example.com" />
                         </div>
-                        <ValidationMessage For="@(() => RegisterModel!.Email)" class="reg-validation" />
+                        <ValidationMessage For="@(() => Model.Email)" class="reg-field-error" />
                     </div>
 
                     <div class="mb-3">
-                        <label class="reg-label" for="password">Пароль</label>
-                        <div class="reg-input-group">
+                        <label class="reg-label" for="password">Пароль <span class="req">*</span></label>
+                        <div class="reg-input-group @(GetFieldClass(nameof(Model.Password)))">
                             <i class="bi bi-lock"></i>
-                            <InputText id="password" type="password" class="form-control reg-input" @bind-Value="RegisterModel!.Password" placeholder="Минимум 8 символов" />
+                            <InputText id="password" type="password" class="form-control reg-input" @bind-Value="Model.Password" placeholder="Минимум 8 символов" @oninput="OnPasswordInput" />
                         </div>
-                        <ValidationMessage For="@(() => RegisterModel!.Password)" class="reg-validation" />
-                        <div class="reg-hint">A-Z, a-z, 0-9 и спецсимвол (!@@#...)</div>
+                        <ValidationMessage For="@(() => Model.Password)" class="reg-field-error" />
+                        @if (!string.IsNullOrEmpty(Model.Password))
+                        {
+                            <div class="pwd-strength">
+                                <div class="pwd-bar">
+                                    <div class="pwd-bar-fill @passwordStrengthClass" style="width: @passwordStrengthPercent%"></div>
+                                </div>
+                                <span class="pwd-text @passwordStrengthClass">@passwordStrengthText</span>
+                            </div>
+                        }
                     </div>
 
                     <div class="mb-4">
-                        <label class="reg-label" for="confirmPassword">Подтвердите пароль</label>
-                        <div class="reg-input-group">
+                        <label class="reg-label" for="confirmPassword">Подтвердите пароль <span class="req">*</span></label>
+                        <div class="reg-input-group @(GetFieldClass(nameof(Model.ConfirmPassword)))">
                             <i class="bi bi-lock-fill"></i>
-                            <InputText id="confirmPassword" type="password" class="form-control reg-input" @bind-Value="RegisterModel!.ConfirmPassword" placeholder="Повторите пароль" />
+                            <InputText id="confirmPassword" type="password" class="form-control reg-input" @bind-Value="Model.ConfirmPassword" placeholder="Повторите пароль" />
                         </div>
-                        <ValidationMessage For="@(() => RegisterModel!.ConfirmPassword)" class="reg-validation" />
+                        <ValidationMessage For="@(() => Model.ConfirmPassword)" class="reg-field-error" />
+                        @if (!string.IsNullOrEmpty(Model.ConfirmPassword))
+                        {
+                            @if (Model.Password == Model.ConfirmPassword)
+                            {
+                                <div class="pwd-match-ok"><i class="bi bi-check-circle"></i> Пароли совпадают</div>
+                            }
+                            else
+                            {
+                                <div class="pwd-match-bad"><i class="bi bi-x-circle"></i> Пароли не совпадают</div>
+                            }
+                        }
                     </div>
 
-                    <button type="button" class="btn reg-btn-primary w-100" @onclick="GoToStep2">
+                    <button type="button" class="btn reg-btn-primary w-100" @onclick="ValidateAndGoStep2">
                         Далее <i class="bi bi-arrow-right ms-2"></i>
                     </button>
                 </div>
@@ -92,42 +119,43 @@
                 @* === Step 2: Company === *@
                 <div class="reg-step-content" style="display: @(step == 2 ? "block" : "none")">
                     <div class="mb-3">
-                        <label class="reg-label" for="companyName">Название компании</label>
-                        <div class="reg-input-group">
+                        <label class="reg-label" for="companyName">Название компании <span class="req">*</span></label>
+                        <div class="reg-input-group @(GetFieldClass(nameof(Model.CompanyName)))">
                             <i class="bi bi-building"></i>
-                            <InputText id="companyName" class="form-control reg-input" @bind-Value="RegisterModel!.CompanyName" placeholder="ООО Ромашка" />
+                            <InputText id="companyName" class="form-control reg-input" @bind-Value="Model.CompanyName" placeholder="ООО Ромашка" />
                         </div>
-                        <ValidationMessage For="@(() => RegisterModel!.CompanyName)" class="reg-validation" />
+                        <ValidationMessage For="@(() => Model.CompanyName)" class="reg-field-error" />
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-7">
-                            <label class="reg-label" for="inn">ИНН</label>
-                            <div class="reg-input-group">
+                            <label class="reg-label" for="inn">ИНН <span class="req">*</span></label>
+                            <div class="reg-input-group @(GetFieldClass(nameof(Model.Inn)))">
                                 <i class="bi bi-hash"></i>
-                                <InputText id="inn" class="form-control reg-input" @bind-Value="RegisterModel!.Inn" placeholder="1234567890" />
+                                <InputText id="inn" class="form-control reg-input" @bind-Value="Model.Inn" placeholder="1234567890" maxlength="12" />
                             </div>
-                            <ValidationMessage For="@(() => RegisterModel!.Inn)" class="reg-validation" />
+                            <ValidationMessage For="@(() => Model.Inn)" class="reg-field-error" />
                         </div>
                         <div class="col-5">
                             <label class="reg-label" for="legalForm">Форма</label>
-                            <InputText id="legalForm" class="form-control reg-input" @bind-Value="RegisterModel!.LegalForm" placeholder="ООО" />
+                            <InputText id="legalForm" class="form-control reg-input reg-input-noicon" @bind-Value="Model.LegalForm" placeholder="ООО" />
                         </div>
                     </div>
 
                     <div class="mb-4">
                         <label class="reg-label" for="phone">Телефон</label>
-                        <div class="reg-input-group">
+                        <div class="reg-input-group @(GetFieldClass(nameof(Model.Phone)))">
                             <i class="bi bi-telephone"></i>
-                            <InputText id="phone" class="form-control reg-input" @bind-Value="RegisterModel!.Phone" placeholder="+7 (999) 000-00-00" />
+                            <InputText id="phone" class="form-control reg-input" @bind-Value="Model.Phone" placeholder="+7 (999) 123-45-67" />
                         </div>
+                        <ValidationMessage For="@(() => Model.Phone)" class="reg-field-error" />
                     </div>
 
                     <div class="d-flex gap-2">
                         <button type="button" class="btn reg-btn-secondary flex-fill" @onclick="() => step = 1">
                             <i class="bi bi-arrow-left me-1"></i> Назад
                         </button>
-                        <button type="button" class="btn reg-btn-primary flex-fill" @onclick="GoToStep3">
+                        <button type="button" class="btn reg-btn-primary flex-fill" @onclick="ValidateAndGoStep3">
                             Далее <i class="bi bi-arrow-right ms-2"></i>
                         </button>
                     </div>
@@ -137,8 +165,8 @@
                 <div class="reg-step-content" style="display: @(step == 3 ? "block" : "none")">
                     <p class="reg-type-prompt">Выберите тип аккаунта:</p>
 
-                    <InputRadioGroup @bind-Value="RegisterModel!.UserType">
-                        <label class="reg-type-card @(RegisterModel!.UserType == "Customer" ? "selected" : "")" for="typeCustomer">
+                    <InputRadioGroup @bind-Value="Model.UserType">
+                        <label class="reg-type-card @(Model.UserType == "Customer" ? "selected" : "")" for="typeCustomer">
                             <InputRadio Value="@("Customer")" class="d-none" id="typeCustomer" />
                             <div class="reg-type-icon customer"><i class="bi bi-basket-fill"></i></div>
                             <div class="reg-type-info">
@@ -147,7 +175,7 @@
                             </div>
                             <div class="reg-type-check"><i class="bi bi-check-lg"></i></div>
                         </label>
-                        <label class="reg-type-card @(RegisterModel!.UserType == "Executor" ? "selected" : "")" for="typeExecutor">
+                        <label class="reg-type-card @(Model.UserType == "Executor" ? "selected" : "")" for="typeExecutor">
                             <InputRadio Value="@("Executor")" class="d-none" id="typeExecutor" />
                             <div class="reg-type-icon executor"><i class="bi bi-tools"></i></div>
                             <div class="reg-type-info">
@@ -157,7 +185,7 @@
                             <div class="reg-type-check"><i class="bi bi-check-lg"></i></div>
                         </label>
                     </InputRadioGroup>
-                    <ValidationMessage For="@(() => RegisterModel!.UserType)" class="reg-validation" />
+                    <ValidationMessage For="@(() => Model.UserType)" class="reg-field-error" />
 
                     <div class="d-flex gap-2 mt-4">
                         <button type="button" class="btn reg-btn-secondary flex-fill" @onclick="() => step = 2">
@@ -191,10 +219,7 @@
         padding: 2rem 1rem;
     }
 
-    .reg-container {
-        width: 100%;
-        max-width: 520px;
-    }
+    .reg-container { width: 100%; max-width: 520px; }
 
     .reg-card {
         background: #fff;
@@ -203,413 +228,302 @@
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     }
 
-    .reg-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
+    .reg-header { text-align: center; margin-bottom: 2rem; }
+    .reg-logo { font-size: 1.1rem; font-weight: 800; color: #667eea; letter-spacing: -0.5px; margin-bottom: 0.75rem; }
+    .reg-title { font-size: 1.75rem; font-weight: 700; color: #1a1a2e; margin: 0 0 0.25rem; }
+    .reg-subtitle { color: #6c757d; margin: 0; font-size: 0.95rem; }
 
-    .reg-logo {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: #667eea;
-        letter-spacing: -0.5px;
-        margin-bottom: 0.75rem;
-    }
-
-    .reg-title {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #1a1a2e;
-        margin: 0 0 0.25rem;
-    }
-
-    .reg-subtitle {
-        color: #6c757d;
-        margin: 0;
-        font-size: 0.95rem;
-    }
+    .req { color: #dc3545; }
 
     /* Steps */
-    .reg-steps {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0;
-        margin-bottom: 2rem;
-    }
-
-    .reg-step {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0 0.5rem;
-    }
-
+    .reg-steps { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 2rem; }
+    .reg-step { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; padding: 0 0.5rem; }
     .reg-step-num {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: #e9ecef;
-        color: #6c757d;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.85rem;
-        transition: all 0.3s;
+        width: 36px; height: 36px; border-radius: 50%; background: #e9ecef; color: #6c757d;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; transition: all 0.3s;
     }
-
-    .reg-step.active .reg-step-num {
-        background: #667eea;
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-
-    .reg-step.done .reg-step-num {
-        background: #198754;
-        color: #fff;
-    }
-
-    .reg-step-label {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #adb5bd;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .reg-step.active .reg-step-label {
-        color: #667eea;
-    }
-
-    .reg-step.done .reg-step-label {
-        color: #198754;
-    }
-
-    .reg-step-line {
-        flex: 1;
-        max-width: 50px;
-        height: 2px;
-        background: #e9ecef;
-        margin: 0 0.25rem;
-        margin-bottom: 18px;
-        transition: background 0.3s;
-    }
-
-    .reg-step-line.done {
-        background: #198754;
-    }
+    .reg-step.active .reg-step-num { background: #667eea; color: #fff; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+    .reg-step.done .reg-step-num { background: #198754; color: #fff; }
+    .reg-step-label { font-size: 0.7rem; font-weight: 600; color: #adb5bd; text-transform: uppercase; letter-spacing: 0.5px; }
+    .reg-step.active .reg-step-label { color: #667eea; }
+    .reg-step.done .reg-step-label { color: #198754; }
+    .reg-step-line { flex: 1; max-width: 50px; height: 2px; background: #e9ecef; margin: 0 0.25rem; margin-bottom: 18px; transition: background 0.3s; }
+    .reg-step-line.done { background: #198754; }
 
     /* Inputs */
-    .reg-label {
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 0.4rem;
-        display: block;
-        font-size: 0.9rem;
-    }
-
-    .reg-input-group {
-        position: relative;
-    }
-
-    .reg-input-group i {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #adb5bd;
-        font-size: 1rem;
-        pointer-events: none;
-    }
-
+    .reg-label { font-weight: 600; color: #2c3e50; margin-bottom: 0.4rem; display: block; font-size: 0.9rem; }
+    .reg-input-group { position: relative; }
+    .reg-input-group i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #adb5bd; font-size: 1rem; pointer-events: none; z-index: 2; }
     .reg-input {
-        border-radius: 10px;
-        padding: 11px 14px 11px 42px;
-        border: 2px solid #e9ecef;
-        font-size: 0.95rem;
-        transition: all 0.2s;
-        color: #2c3e50;
-        background: #fff;
+        border-radius: 10px; padding: 11px 14px 11px 42px; border: 2px solid #e9ecef;
+        font-size: 0.95rem; transition: all 0.2s; color: #2c3e50; background: #fff;
     }
+    .reg-input-noicon { padding-left: 14px; border-radius: 10px; padding-top: 11px; padding-bottom: 11px; border: 2px solid #e9ecef; font-size: 0.95rem; transition: all 0.2s; }
+    .reg-input:focus, .reg-input-noicon:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12); background: #fff; }
+    .col-5 .reg-input { padding-left: 14px; }
 
-    .reg-input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
-        background: #fff;
-    }
+    .reg-input-group.has-error .reg-input, .reg-input-group.has-error .reg-input-noicon { border-color: #dc3545; }
+    .reg-input-group.has-error i { color: #dc3545; }
+    .reg-input-group.is-valid .reg-input, .reg-input-group.is-valid .reg-input-noicon { border-color: #198754; }
+    .reg-input-group.is-valid i { color: #198754; }
 
-    .col-5 .reg-input {
-        padding-left: 14px;
-    }
+    .reg-field-error { color: #dc3545; font-size: 0.82rem; margin-top: 4px; display: block; font-weight: 500; }
 
-    .reg-hint {
-        font-size: 0.78rem;
-        color: #adb5bd;
-        margin-top: 4px;
-        padding-left: 2px;
-    }
+    /* Password strength */
+    .pwd-strength { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+    .pwd-bar { flex: 1; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden; }
+    .pwd-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
+    .pwd-bar-fill.pwd-weak { background: #dc3545; }
+    .pwd-bar-fill.pwd-fair { background: #fd7e14; }
+    .pwd-bar-fill.pwd-good { background: #ffc107; }
+    .pwd-bar-fill.pwd-strong { background: #198754; }
+    .pwd-text { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .pwd-text.pwd-weak { color: #dc3545; }
+    .pwd-text.pwd-fair { color: #fd7e14; }
+    .pwd-text.pwd-good { color: #ffc107; }
+    .pwd-text.pwd-strong { color: #198754; }
 
-    .reg-validation {
-        color: #dc3545;
-        font-size: 0.82rem;
-        margin-top: 4px;
-        display: block;
-    }
+    .pwd-match-ok { font-size: 0.8rem; color: #198754; margin-top: 4px; font-weight: 500; }
+    .pwd-match-bad { font-size: 0.8rem; color: #dc3545; margin-top: 4px; font-weight: 500; }
 
     /* Buttons */
     .reg-btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #fff;
-        border: none;
-        border-radius: 10px;
-        padding: 12px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.2s;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none;
+        border-radius: 10px; padding: 12px; font-weight: 600; font-size: 0.95rem; transition: all 0.2s;
     }
-
-    .reg-btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
-        color: #fff;
-    }
-
+    .reg-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35); color: #fff; }
     .reg-btn-secondary {
-        background: #f8f9fa;
-        color: #495057;
-        border: 2px solid #e9ecef;
-        border-radius: 10px;
-        padding: 12px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.2s;
+        background: #f8f9fa; color: #495057; border: 2px solid #e9ecef;
+        border-radius: 10px; padding: 12px; font-weight: 600; font-size: 0.95rem; transition: all 0.2s;
     }
-
-    .reg-btn-secondary:hover {
-        background: #e9ecef;
-        color: #212529;
-    }
-
+    .reg-btn-secondary:hover { background: #e9ecef; color: #212529; }
     .reg-btn-submit {
-        background: linear-gradient(135deg, #198754 0%, #20c997 100%);
-        color: #fff;
-        border: none;
-        border-radius: 10px;
-        padding: 12px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.2s;
+        background: linear-gradient(135deg, #198754 0%, #20c997 100%); color: #fff; border: none;
+        border-radius: 10px; padding: 12px; font-weight: 600; font-size: 0.95rem; transition: all 0.2s;
     }
-
-    .reg-btn-submit:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(25, 135, 84, 0.35);
-        color: #fff;
-    }
-
-    .reg-btn-submit:disabled {
-        opacity: 0.65;
-    }
+    .reg-btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(25, 135, 84, 0.35); color: #fff; }
+    .reg-btn-submit:disabled { opacity: 0.65; }
 
     /* Type cards */
-    .reg-type-prompt {
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 1rem;
-        font-size: 0.95rem;
-    }
-
+    .reg-type-prompt { font-weight: 600; color: #2c3e50; margin-bottom: 1rem; font-size: 0.95rem; }
     .reg-type-card {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border: 2px solid #e9ecef;
-        border-radius: 14px;
-        cursor: pointer;
-        transition: all 0.25s;
-        margin-bottom: 0.75rem;
+        display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem;
+        border: 2px solid #e9ecef; border-radius: 14px; cursor: pointer; transition: all 0.25s; margin-bottom: 0.75rem;
     }
-
-    .reg-type-card:hover {
-        border-color: #667eea;
-        background: #f8f9ff;
-    }
-
-    .reg-type-card.selected {
-        border-color: #667eea;
-        background: linear-gradient(135deg, #f0f3ff 0%, #e8ecff 100%);
-    }
-
-    .reg-type-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        flex-shrink: 0;
-    }
-
-    .reg-type-icon.customer {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        color: #155724;
-    }
-
-    .reg-type-icon.executor {
-        background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
-        color: #856404;
-    }
-
-    .reg-type-info {
-        flex: 1;
-    }
-
-    .reg-type-info strong {
-        display: block;
-        font-size: 1rem;
-        color: #1a1a2e;
-    }
-
-    .reg-type-info span {
-        font-size: 0.82rem;
-        color: #6c757d;
-    }
-
+    .reg-type-card:hover { border-color: #667eea; background: #f8f9ff; }
+    .reg-type-card.selected { border-color: #667eea; background: linear-gradient(135deg, #f0f3ff 0%, #e8ecff 100%); }
+    .reg-type-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+    .reg-type-icon.customer { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); color: #155724; }
+    .reg-type-icon.executor { background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); color: #856404; }
+    .reg-type-info { flex: 1; }
+    .reg-type-info strong { display: block; font-size: 1rem; color: #1a1a2e; }
+    .reg-type-info span { font-size: 0.82rem; color: #6c757d; }
     .reg-type-check {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: 2px solid #dee2e6;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: transparent;
-        transition: all 0.2s;
-        flex-shrink: 0;
+        width: 28px; height: 28px; border-radius: 50%; border: 2px solid #dee2e6;
+        display: flex; align-items: center; justify-content: center; color: transparent; transition: all 0.2s; flex-shrink: 0;
     }
+    .reg-type-card.selected .reg-type-check { background: #667eea; border-color: #667eea; color: #fff; }
 
-    .reg-type-card.selected .reg-type-check {
-        background: #667eea;
-        border-color: #667eea;
-        color: #fff;
-    }
+    /* Alerts */
+    .reg-alert { border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .reg-alert-error { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; }
+    .reg-alert-success { background: #f0fff4; border: 1px solid #c6f6d5; color: #276749; }
 
-    /* Alert */
-    .reg-alert {
-        background: #fff5f5;
-        border: 1px solid #fed7d7;
-        color: #c53030;
-        border-radius: 10px;
-        padding: 0.85rem 1rem;
-        margin-bottom: 1.5rem;
-        font-size: 0.9rem;
-    }
-
-    /* Footer */
-    .reg-footer {
-        text-align: center;
-        margin-top: 1.75rem;
-        padding-top: 1.25rem;
-        border-top: 1px solid #f1f3f5;
-        color: #6c757d;
-        font-size: 0.9rem;
-    }
-
-    .reg-footer a {
-        color: #667eea;
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    .reg-footer a:hover {
-        text-decoration: underline;
-    }
+    .reg-footer { text-align: center; margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid #f1f3f5; color: #6c757d; font-size: 0.9rem; }
+    .reg-footer a { color: #667eea; font-weight: 600; text-decoration: none; }
+    .reg-footer a:hover { text-decoration: underline; }
 
     @@media (max-width: 576px) {
-        .reg-card {
-            padding: 1.5rem;
-            border-radius: 16px;
-        }
-
-        .reg-title {
-            font-size: 1.4rem;
-        }
-
-        .reg-step-label {
-            font-size: 0.6rem;
-        }
+        .reg-card { padding: 1.5rem; border-radius: 16px; }
+        .reg-title { font-size: 1.4rem; }
+        .reg-step-label { font-size: 0.6rem; }
     }
 </style>
 
 @code {
-    [SupplyParameterFromForm]
-    private RegisterModel? RegisterModel { get; set; }
-    
+    private RegisterModel Model { get; set; } = new();
+    private EditContext editContext = default!;
+
     private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
     private bool isLoading = false;
     private int step = 1;
+    private bool step1Validated = false;
+    private bool step2Validated = false;
+
+    private string passwordStrengthClass = "";
+    private string passwordStrengthText = "";
+    private int passwordStrengthPercent = 0;
 
     protected override void OnInitialized()
     {
-        RegisterModel ??= new RegisterModel();
+        editContext = new EditContext(Model);
     }
 
-    private void GoToStep2()
+    private void OnPasswordInput(ChangeEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(RegisterModel?.Username) ||
-            string.IsNullOrWhiteSpace(RegisterModel?.Email) ||
-            string.IsNullOrWhiteSpace(RegisterModel?.Password))
+        var pwd = e.Value?.ToString() ?? "";
+        CalculatePasswordStrength(pwd);
+    }
+
+    private void CalculatePasswordStrength(string pwd)
+    {
+        if (string.IsNullOrEmpty(pwd))
         {
-            errorMessage = "Заполните все обязательные поля";
+            passwordStrengthPercent = 0;
+            passwordStrengthClass = "";
+            passwordStrengthText = "";
             return;
         }
-        if (RegisterModel.Password != RegisterModel.ConfirmPassword)
+
+        int score = 0;
+        if (pwd.Length >= 8) score++;
+        if (pwd.Length >= 12) score++;
+        if (pwd.Any(char.IsUpper)) score++;
+        if (pwd.Any(char.IsLower)) score++;
+        if (pwd.Any(char.IsDigit)) score++;
+        if (pwd.Any(c => !char.IsLetterOrDigit(c))) score++;
+
+        switch (score)
         {
-            errorMessage = "Пароли не совпадают";
-            return;
+            case <= 2:
+                passwordStrengthPercent = 25;
+                passwordStrengthClass = "pwd-weak";
+                passwordStrengthText = "Слабый";
+                break;
+            case 3:
+                passwordStrengthPercent = 50;
+                passwordStrengthClass = "pwd-fair";
+                passwordStrengthText = "Средний";
+                break;
+            case 4:
+                passwordStrengthPercent = 75;
+                passwordStrengthClass = "pwd-good";
+                passwordStrengthText = "Хороший";
+                break;
+            default:
+                passwordStrengthPercent = 100;
+                passwordStrengthClass = "pwd-strong";
+                passwordStrengthText = "Надёжный";
+                break;
         }
+    }
+
+    private string GetFieldClass(string fieldName)
+    {
+        if ((step == 1 && !step1Validated) || (step == 2 && !step2Validated))
+            return "";
+
+        var fieldId = editContext.Field(fieldName);
+        var isValid = !editContext.GetValidationMessages(fieldId).Any();
+        var value = fieldName switch
+        {
+            nameof(Model.Username) => Model.Username,
+            nameof(Model.Email) => Model.Email,
+            nameof(Model.Password) => Model.Password,
+            nameof(Model.ConfirmPassword) => Model.ConfirmPassword,
+            nameof(Model.CompanyName) => Model.CompanyName,
+            nameof(Model.Inn) => Model.Inn,
+            nameof(Model.Phone) => Model.Phone,
+            _ => ""
+        };
+
+        if (string.IsNullOrEmpty(value)) return "";
+        return isValid ? "is-valid" : "has-error";
+    }
+
+    private bool ValidateFields(params string[] fields)
+    {
+        editContext.Validate();
+        foreach (var field in fields)
+        {
+            var fi = editContext.Field(field);
+            if (editContext.GetValidationMessages(fi).Any())
+                return false;
+        }
+        return true;
+    }
+
+    private void ValidateAndGoStep2()
+    {
+        step1Validated = true;
         errorMessage = string.Empty;
+
+        if (!ValidateFields(nameof(Model.Username), nameof(Model.Email), nameof(Model.Password), nameof(Model.ConfirmPassword)))
+        {
+            errorMessage = "Исправьте ошибки в форме";
+            return;
+        }
+
         step = 2;
     }
 
-    private void GoToStep3()
+    private void ValidateAndGoStep3()
     {
-        if (string.IsNullOrWhiteSpace(RegisterModel?.CompanyName) ||
-            string.IsNullOrWhiteSpace(RegisterModel?.Inn))
+        step2Validated = true;
+        errorMessage = string.Empty;
+
+        if (!ValidateFields(nameof(Model.CompanyName), nameof(Model.Inn), nameof(Model.Phone)))
         {
-            errorMessage = "Укажите название компании и ИНН";
+            errorMessage = "Исправьте ошибки в форме";
             return;
         }
-        errorMessage = string.Empty;
+
         step = 3;
+    }
+
+    private void GoToStep(int target)
+    {
+        if (target < step) step = target;
     }
 
     private async Task HandleRegister()
     {
-        if (RegisterModel == null) return;
-        
-        if (string.IsNullOrWhiteSpace(RegisterModel.UserType))
+        step1Validated = true;
+        step2Validated = true;
+        errorMessage = string.Empty;
+
+        if (!editContext.Validate())
+        {
+            var step1Fields = new[] { nameof(Model.Username), nameof(Model.Email), nameof(Model.Password), nameof(Model.ConfirmPassword) };
+            var step2Fields = new[] { nameof(Model.CompanyName), nameof(Model.Inn), nameof(Model.Phone) };
+
+            foreach (var f in step1Fields)
+            {
+                if (editContext.GetValidationMessages(editContext.Field(f)).Any())
+                {
+                    step = 1;
+                    errorMessage = "Исправьте ошибки на шаге 1";
+                    return;
+                }
+            }
+            foreach (var f in step2Fields)
+            {
+                if (editContext.GetValidationMessages(editContext.Field(f)).Any())
+                {
+                    step = 2;
+                    errorMessage = "Исправьте ошибки на шаге 2";
+                    return;
+                }
+            }
+
+            errorMessage = "Исправьте ошибки в форме";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Model.UserType))
         {
             errorMessage = "Выберите тип аккаунта";
             return;
         }
 
         isLoading = true;
-        errorMessage = string.Empty;
 
         try
         {
-            RegisterModel.Role = RegisterModel.UserType == "Executor" ? "Executor" : "User";
+            Model.Role = Model.UserType == "Executor" ? "Executor" : "User";
+            var result = await AuthService.RegisterAsync(Model);
 
-            var result = await AuthService.RegisterAsync(RegisterModel);
-            
             if (result != null)
             {
                 Logger.LogInformation("User {Username} registered successfully", result.Username);

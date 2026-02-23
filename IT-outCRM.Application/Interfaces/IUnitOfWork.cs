@@ -14,6 +14,9 @@ namespace IT_outCRM.Application.Interfaces
         IUserRepository Users { get; }
         IOrderStatusRepository OrderStatuses { get; }
         IServiceRepository Services { get; }
+        IDealRepository Deals { get; }
+        IDealMessageRepository DealMessages { get; }
+        INotificationRepository Notifications { get; }
         
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

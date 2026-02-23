@@ -110,7 +110,7 @@
                         </div>
                         <div class="stat-box total-amount">
                             <label>Общая сумма:</label>
-                            <span>@customerOrders.Sum(o => o.Price).ToString("C")</span>
+                            <span>@customerOrders.Sum(o => o.Price).ToString("#,##0") ₽</span>
                         </div>
                     </div>
                     <div class="orders-list">
@@ -122,7 +122,7 @@
                                     <span class="badge bg-primary">@(string.IsNullOrEmpty(order.OrderStatusName) ? "Не указан" : order.OrderStatusName)</span>
                                 </div>
                                 <div class="order-price">
-                                    @order.Price.ToString("C")
+                                    @order.Price.ToString("#,##0") ₽
                                 </div>
                             </div>
                         }

@@ -2,16 +2,19 @@ using System.Linq;
 using System.Net.Http.Json;
 using System.Text.Json;
 using IT_outCRM.Blazor.Models;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class OrderService : IOrderService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<OrderService> _logger;
 
-        public OrderService(HttpClient httpClient)
+        public OrderService(HttpClient httpClient, ILogger<OrderService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -60,15 +63,13 @@ namespace IT_outCRM.Blazor.Services
                     return await response.Content.ReadFromJsonAsync<OrderModel>();
                 }
                 
-                // Логируем ошибку для отладки
                 var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"[OrderService] GetById failed: {response.StatusCode} - {errorContent}");
-                
+                _logger.LogWarning("GetById failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OrderService] Exception in GetById: {ex.Message}");
+                _logger.LogWarning(ex, "Exception in GetById");
                 return null;
             }
         }
@@ -373,13 +374,13 @@ namespace IT_outCRM.Blazor.Services
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadFromJsonAsync<List<OrderModel>>();
-                    Console.WriteLine($"[OrderService] GetMyOrdersAsync: Successfully loaded {result?.Count ?? 0} orders");
+                    _logger.LogDebug("GetMyOrdersAsync: Successfully loaded {Count} orders", result?.Count ?? 0);
                     return result ?? new List<OrderModel>();
                 }
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[OrderService] GetMyOrdersAsync failed: {response.StatusCode} - {errorContent}");
+                    _logger.LogWarning("GetMyOrdersAsync failed: {StatusCode} - {ErrorContent}", response.StatusCode, errorContent);
                     
                     // Пытаемся извлечь сообщение об ошибке
                     string errorMessage = "Ошибка при получении заказов";
@@ -438,7 +439,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OrderService] Error in GetMyOrdersAsync: {ex.Message}");
+                _logger.LogWarning(ex, "Error in GetMyOrdersAsync");
                 throw new InvalidOperationException($"Ошибка при получении заказов: {ex.Message}", ex);
             }
         }

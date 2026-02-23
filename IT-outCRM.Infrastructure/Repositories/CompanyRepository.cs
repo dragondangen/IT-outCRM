@@ -23,6 +23,12 @@ namespace IT_outCRM.Infrastructure.Repositories
                 .Include(c => c.ContactPerson)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
+
+        public async Task<Company?> GetByContactPersonIdAsync(Guid contactPersonId)
+        {
+            return await _dbSet
+                .FirstOrDefaultAsync(c => c.ContactPersonID == contactPersonId);
+        }
     }
 }
 

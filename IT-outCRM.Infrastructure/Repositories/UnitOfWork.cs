@@ -19,6 +19,9 @@ namespace IT_outCRM.Infrastructure.Repositories
         public IUserRepository Users { get; }
         public IOrderStatusRepository OrderStatuses { get; }
         public IServiceRepository Services { get; }
+        public IDealRepository Deals { get; }
+        public IDealMessageRepository DealMessages { get; }
+        public INotificationRepository Notifications { get; }
 
         public UnitOfWork(CrmDbContext context)
         {
@@ -34,6 +37,9 @@ namespace IT_outCRM.Infrastructure.Repositories
             Users = new UserRepository(_context);
             OrderStatuses = new OrderStatusRepository(_context);
             Services = new ServiceRepository(_context);
+            Deals = new DealRepository(_context);
+            DealMessages = new DealMessageRepository(_context);
+            Notifications = new NotificationRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync()

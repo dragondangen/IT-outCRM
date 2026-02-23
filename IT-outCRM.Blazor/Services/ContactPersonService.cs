@@ -1,15 +1,18 @@
 using IT_outCRM.Blazor.Models;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class ContactPersonService : IContactPersonService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<ContactPersonService> _logger;
 
-        public ContactPersonService(HttpClient httpClient)
+        public ContactPersonService(HttpClient httpClient, ILogger<ContactPersonService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -30,7 +33,7 @@ namespace IT_outCRM.Blazor.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[ContactPersonService] GetAll failed: {response.StatusCode} - {error}");
+                    _logger.LogWarning("GetAll failed: {StatusCode} - {Error}", response.StatusCode, error);
                     throw new Exception($"Ошибка загрузки ({response.StatusCode}): {error}");
                 }
 
@@ -39,7 +42,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ContactPersonService] Exception loading contact persons: {ex.Message}");
+                _logger.LogWarning(ex, "Exception loading contact persons");
                 throw;
             }
         }
@@ -52,7 +55,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ContactPersonService] Error getting contact person {id}: {ex.Message}");
+                _logger.LogWarning(ex, "Error getting contact person {Id}", id);
                 return null;
             }
         }
@@ -75,7 +78,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ContactPersonService] Error creating contact person: {ex.Message}");
+                _logger.LogWarning(ex, "Error creating contact person");
                 throw;
             }
         }
@@ -99,7 +102,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ContactPersonService] Error updating contact person: {ex.Message}");
+                _logger.LogWarning(ex, "Error updating contact person");
                 throw;
             }
         }
@@ -113,7 +116,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ContactPersonService] Error deleting contact person: {ex.Message}");
+                _logger.LogWarning(ex, "Error deleting contact person");
                 return false;
             }
         }

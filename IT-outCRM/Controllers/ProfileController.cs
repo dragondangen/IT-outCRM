@@ -22,6 +22,87 @@ namespace IT_outCRM.Controllers
             _logger = logger;
         }
 
+        [HttpGet("my-info")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        public async Task<ActionResult> GetMyInfo()
+        {
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+
+            if (string.IsNullOrEmpty(userEmail))
+                return Ok(new { });
+
+            try
+            {
+                var contact = await _unitOfWork.ContactPersons.GetByEmailAsync(userEmail);
+                if (contact == null) return Ok(new { });
+
+                var company = await _unitOfWork.Companies.GetByContactPersonIdAsync(contact.Id);
+                if (company == null) return Ok(new { contactPerson = new { contact.FirstName, contact.LastName, contact.PhoneNumber, contact.Role } });
+
+                string? accountName = null;
+                string? accountStatus = null;
+                Guid? customerId = null;
+                Guid? executorId = null;
+                int completedOrders = 0;
+
+                if (userRole == "Executor")
+                {
+                    var executor = await _unitOfWork.Executors.GetByCompanyIdAsync(company.Id);
+                    if (executor != null)
+                    {
+                        executorId = executor.Id;
+                        completedOrders = executor.CompletedOrders;
+                        var account = await _unitOfWork.Accounts.GetByIdAsync(executor.AccountId);
+                        if (account != null)
+                        {
+                            accountName = account.CompanyName;
+                            var status = await _unitOfWork.AccountStatuses.GetByIdAsync(account.AccountStatusId);
+                            accountStatus = status?.Name;
+                        }
+                    }
+                }
+                else
+                {
+                    var customers = await _unitOfWork.Customers.GetCustomersByCompanyAsync(company.Id);
+                    var customer = customers.FirstOrDefault();
+                    if (customer != null)
+                    {
+                        customerId = customer.Id;
+                        var account = await _unitOfWork.Accounts.GetByIdAsync(customer.AccountId);
+                        if (account != null)
+                        {
+                            accountName = account.CompanyName;
+                            var status = await _unitOfWork.AccountStatuses.GetByIdAsync(account.AccountStatusId);
+                            accountStatus = status?.Name;
+                        }
+                    }
+                }
+
+                return Ok(new
+                {
+                    companyName = company.Name,
+                    companyInn = company.Inn,
+                    companyLegalForm = company.LegalForm,
+                    contactFirstName = contact.FirstName,
+                    contactLastName = contact.LastName,
+                    contactPhone = contact.PhoneNumber,
+                    contactRole = contact.Role,
+                    accountName,
+                    accountStatus,
+                    customerId,
+                    executorId,
+                    completedOrders
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting profile info for {Email}", userEmail);
+                return Ok(new { });
+            }
+        }
+
         /// <summary>
         /// Загрузить аватар для текущего пользователя
         /// </summary>

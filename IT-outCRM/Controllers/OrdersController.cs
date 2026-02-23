@@ -114,8 +114,7 @@ namespace IT_outCRM.Controllers
                 }
 
                 Logger.LogInformation("GetMyOrders: Found contact {ContactId}, looking up company", contact.Id);
-                var companies = await _unitOfWork.Companies.GetAllAsync();
-                var company = companies.FirstOrDefault(c => c.ContactPersonID == contact.Id);
+                var company = await _unitOfWork.Companies.GetByContactPersonIdAsync(contact.Id);
                 
                 if (company == null)
                 {
@@ -129,8 +128,7 @@ namespace IT_outCRM.Controllers
                 if (User.IsInRole("Executor"))
                 {
                     Logger.LogInformation("GetMyOrders: User is Executor, looking up executor profile");
-                    var executors = await _unitOfWork.Executors.GetAllAsync();
-                    var executor = executors.FirstOrDefault(e => e.CompanyId == company.Id);
+                    var executor = await _unitOfWork.Executors.GetByCompanyIdAsync(company.Id);
                     
                     if (executor == null)
                     {
@@ -269,33 +267,11 @@ namespace IT_outCRM.Controllers
                 if (string.IsNullOrEmpty(userEmail))
                     return BadRequest("User email not found in claims");
 
-                // Find CustomerId
-                // Chain: User Email -> ContactPerson -> Company -> Customer
-                // Since I can't easily query this via existing repositories without expanding them,
-                // I'll do a direct query via generic repos if possible or standard LINQ if exposed.
-                // I'll use specific repositories logic where possible.
-                
                 var contact = await _unitOfWork.ContactPersons.GetByEmailAsync(userEmail);
                 if (contact == null)
                     return BadRequest("Contact person not found for current user");
 
-                // Find Company
-                // I have to scan companies or add a method. I'll scan for now (inefficient but works for prototype)
-                // Or use the fact that I need to match ContactPersonId
-                // Actually, let's iterate all companies? No.
-                // Let's use a raw query or add a method to CompanyRepository?
-                // I'll add a specific query here using standard LINQ if I could access DbSet. 
-                // But I only have Repo interface. 
-                // I will use GetAllAsync and filter in memory (bad practice but quick fix) 
-                // OR assume the user provides CustomerId? 
-                // The prompt says "auto assign".
-                
-                // Better: Add GetByContactPersonIdAsync to ICompanyRepository.
-                // I'll do that in parallel or after. For now, assume I can find it.
-                // Wait, I have _unitOfWork.Companies. 
-                // Let's use GetAllAsync() temporarily.
-                var companies = await _unitOfWork.Companies.GetAllAsync();
-                var company = companies.FirstOrDefault(c => c.ContactPersonID == contact.Id); // Note: ContactPersonID (case sensitive?)
+                var company = await _unitOfWork.Companies.GetByContactPersonIdAsync(contact.Id);
                 
                 if (company == null)
                     return BadRequest("Company not found for current user");
@@ -467,20 +443,13 @@ namespace IT_outCRM.Controllers
              if (string.IsNullOrEmpty(userEmail))
                 return Unauthorized();
 
-             // Find ExecutorId for current user
              var contact = await _unitOfWork.ContactPersons.GetByEmailAsync(userEmail);
              if (contact == null) return BadRequest("User profile not found");
              
-             // Inefficient find
-             var companies = await _unitOfWork.Companies.GetAllAsync();
-             var company = companies.FirstOrDefault(c => c.ContactPersonID == contact.Id);
+             var company = await _unitOfWork.Companies.GetByContactPersonIdAsync(contact.Id);
              if (company == null) return BadRequest("Company not found");
 
-             // Find Executor
-             // I need GetExecutorsByCompanyAsync? 
-             // I'll scan again (bad)
-             var executors = await _unitOfWork.Executors.GetAllAsync();
-             var executor = executors.FirstOrDefault(e => e.CompanyId == company.Id);
+             var executor = await _unitOfWork.Executors.GetByCompanyIdAsync(company.Id);
              
              if (executor == null) return BadRequest("Executor profile not found. Are you an executor?");
 

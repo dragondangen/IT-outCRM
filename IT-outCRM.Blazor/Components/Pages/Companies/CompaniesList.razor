@@ -3,6 +3,7 @@
 @using IT_outCRM.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
 @inject ICompanyService CompanyService
+@inject IAccountService AccountService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -51,6 +52,7 @@
                                 <tr>
                                     <th>Название компании</th>
                                     <th>ИНН</th>
+                                    <th>Аккаунт</th>
                                     <th>Адрес</th>
                                     <th>Действия</th>
                                 </tr>
@@ -71,6 +73,12 @@
                                         <td>
                                             <span class="inn-badge">
                                                 @(string.IsNullOrEmpty(company.Inn) ? "Не указан" : company.Inn)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @{ var acc = accounts.FirstOrDefault(a => a.CompanyId == company.Id); }
+                                            <span class="account-badge">
+                                                <i class="bi bi-diagram-3"></i> @(acc != null ? acc.CompanyName : "—")
                                             </span>
                                         </td>
                                         <td>
@@ -214,6 +222,18 @@
         color: white;
     }
 
+    .account-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #f0e6ff;
+        color: #6f42c1;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
     .inn-badge {
         display: inline-flex;
         align-items: center;
@@ -300,6 +320,7 @@
 
 @code {
     private List<CompanyModel> companies = new();
+    private List<AccountModel> accounts = new();
     private bool isLoading = true;
     private string errorMessage = string.Empty;
 
@@ -313,7 +334,9 @@
             if (!string.IsNullOrEmpty(token))
             {
                 CompanyService.SetToken(token);
+                AccountService.SetToken(token);
                 await LoadCompanies();
+                try { accounts = await AccountService.GetAllAsync(); } catch { }
             }
             else
             {

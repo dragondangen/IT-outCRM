@@ -2,6 +2,11 @@ using IT_outCRM.Blazor.Components;
 using IT_outCRM.Blazor.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
+using System.Globalization;
+
+var ruCulture = new CultureInfo("ru-RU");
+CultureInfo.DefaultThreadCurrentCulture = ruCulture;
+CultureInfo.DefaultThreadCurrentUICulture = ruCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,6 +106,18 @@ builder.Services.AddHttpClient<IServiceService, ServiceService>(client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 }).AddHttpMessageHandler<AuthenticationHttpClientHandler>();
 
+builder.Services.AddHttpClient<IDealService, DealService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+
+builder.Services.AddHttpClient<IAnalyticsService, AnalyticsService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(60);
+}).AddHttpMessageHandler<AuthenticationHttpClientHandler>();
+
 // Add Authentication with a default scheme for Blazor Server
 builder.Services.AddAuthentication("BlazorAuth")
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, BlazorAuthenticationHandler>("BlazorAuth", null);
@@ -170,6 +187,8 @@ app.Use(async (context, next) =>
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();

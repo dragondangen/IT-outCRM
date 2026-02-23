@@ -45,22 +45,13 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
-    // Отладочные события
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"[JwtBearer] Authentication failed: {context.Exception.Message}");
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            Console.WriteLine($"[JwtBearer] Token validated successfully for user: {context.Principal?.Identity?.Name}");
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            Console.WriteLine($"[JwtBearer] OnChallenge error: {context.Error}, description: {context.ErrorDescription}");
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("JwtBearer");
+            logger.LogWarning("Authentication failed: {Error}", context.Exception.Message);
             return Task.CompletedTask;
         }
     };
@@ -206,6 +197,9 @@ builder.Services.AddSwaggerGen(options =>
     }
 });
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<CrmDbContext>("database");
+
 var app = builder.Build();
 
 // Глобальный обработчик исключений
@@ -275,4 +269,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.Run();

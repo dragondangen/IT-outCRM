@@ -11,5 +11,7 @@ namespace IT_outCRM.Application.Interfaces.Services
         Task<UserDto> UpdateUserAsync(Guid userId, UpdateUserDto updateDto);
         Task<UserDto> ToggleUserActiveAsync(Guid userId);
         Task DeleteUserAsync(Guid userId);
+        Task<string> RequestPasswordResetAsync(string email);
+        Task ResetPasswordAsync(string token, string newPassword);
     }
 }

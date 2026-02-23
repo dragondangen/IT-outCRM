@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace IT_outCRM.Blazor.Services
@@ -61,6 +62,24 @@ namespace IT_outCRM.Blazor.Services
                 throw;
             }
 
+            return null;
+        }
+
+        public async Task<ProfileInfo?> GetMyInfoAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/profile/my-info");
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<ProfileInfo>(
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting profile info");
+            }
             return null;
         }
 

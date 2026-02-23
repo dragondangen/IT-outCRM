@@ -8,6 +8,7 @@
 @inject IJSRuntime JS
 @inject IServiceService ServiceService
 @inject ITokenStorage TokenStorage
+@inject IExecutorService ExecutorService
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Все услуги - IT-outCRM</PageTitle>
@@ -20,6 +21,12 @@
             <h2>💼 Все услуги</h2>
             <p class="text-muted">Просмотр всех услуг, предлагаемых исполнителями</p>
         </div>
+        @if (isAdminOrManager)
+        {
+            <button class="btn btn-primary btn-lg" @onclick="ShowCreateModal">
+                <i class="bi bi-plus-circle"></i> Добавить услугу
+            </button>
+        }
     </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
@@ -107,7 +114,7 @@
                             <div class="service-info">
                                 <div class="info-item">
                                     <i class="bi bi-cash"></i>
-                                    <span>@service.Price.ToString("C")</span>
+                                    <span>@service.Price.ToString("#,##0") ₽</span>
                                 </div>
                                 <div class="info-item">
                                     <i class="bi bi-clock"></i>
@@ -130,6 +137,15 @@
                             <button class="btn btn-sm btn-outline-info" @onclick="() => ViewService(service)">
                                 <i class="bi bi-eye"></i> Просмотр
                             </button>
+                            @if (isAdminOrManager)
+                            {
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => EditService(service)">
+                                    <i class="bi bi-pencil"></i> Изменить
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(service)">
+                                    <i class="bi bi-trash"></i> Удалить
+                                </button>
+                            }
                         </div>
                     </div>
                 }
@@ -158,7 +174,7 @@
 </AuthorizeView>
 
 <!-- Модальное окно для просмотра услуги -->
-@if (showModal && selectedService != null)
+@if (showViewModal && selectedService != null)
 {
     <div class="modal-backdrop" @onclick="CloseModal"></div>
     <div class="modal show d-block" tabindex="-1">
@@ -176,7 +192,7 @@
                         </div>
                         <div class="detail-row">
                             <label>Цена:</label>
-                            <p class="price-value">@selectedService.Price.ToString("C")</p>
+                            <p class="price-value">@selectedService.Price.ToString("#,##0") ₽</p>
                         </div>
                         <div class="detail-row">
                             <label>Длительность:</label>
@@ -217,6 +233,79 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseModal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Модальное окно для создания/редактирования услуги (Admin/Manager) -->
+@if (showEditModal)
+{
+    <div class="modal-backdrop" @onclick="CloseModal"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(editingService == null ? "Добавить услугу" : "Редактировать услугу")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="editModel" OnValidSubmit="SaveService">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Название услуги <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="editModel.Name" placeholder="Например: Разработка сайта" />
+                            <ValidationMessage For="@(() => editModel.Name)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Описание</label>
+                            <InputTextArea class="form-control" rows="4" @bind-Value="editModel.Description" placeholder="Подробное описание услуги..." />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Цена (₽) <span class="text-danger">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="editModel.Price" />
+                                <ValidationMessage For="@(() => editModel.Price)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Длительность (дней) <span class="text-danger">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="editModel.Duration" />
+                                <ValidationMessage For="@(() => editModel.Duration)" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Категория</label>
+                            <InputText class="form-control" @bind-Value="editModel.Category" placeholder="Например: Разработка, Дизайн, Консультация" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Исполнитель <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="editModel.ExecutorId">
+                                <option value="@Guid.Empty">Выберите исполнителя</option>
+                                @foreach (var ex in executorsList)
+                                {
+                                    <option value="@ex.Id">@ex.CompanyName</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <InputCheckbox class="form-check-input" @bind-Value="editModel.IsActive" />
+                            <label class="form-check-label">Услуга активна (видна клиентам)</label>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Отмена</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Сохранить
+                            </button>
+                        </div>
+                    </EditForm>
                 </div>
             </div>
         </div>
@@ -401,14 +490,19 @@
     private List<ServiceModel> allServices = new();
     private List<ServiceModel> filteredServices = new();
     private List<string> uniqueCategories = new();
+    private List<ExecutorModel> executorsList = new();
     private bool isLoading = true;
+    private bool isAdminOrManager = false;
     private string errorMessage = string.Empty;
     private string successMessage = string.Empty;
     private string searchTerm = string.Empty;
     private string selectedCategory = string.Empty;
     private string selectedStatus = string.Empty;
-    private bool showModal = false;
+    private bool showViewModal = false;
+    private bool showEditModal = false;
     private ServiceModel? selectedService = null;
+    private ServiceModel? editingService = null;
+    private ServiceModel editModel = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -420,8 +514,19 @@
             if (!string.IsNullOrEmpty(token))
             {
                 ServiceService.SetToken(token);
+                ExecutorService.SetToken(token);
+
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                isAdminOrManager = user.IsInRole("Admin") || user.IsInRole("Manager");
                 
                 await LoadServices();
+
+                if (isAdminOrManager)
+                {
+                    try { executorsList = await ExecutorService.GetAllAsync() ?? new(); }
+                    catch { executorsList = new(); }
+                }
             }
             else
             {
@@ -439,33 +544,24 @@
 
         try
         {
-            // Загружаем услуги через API
-            allServices = await ServiceService.GetAllAsync();
-            
-            if (allServices == null)
-            {
-                allServices = new List<ServiceModel>();
-            }
-            
+            allServices = await ServiceService.GetAllAsync() ?? new();
             uniqueCategories = allServices
                 .Select(s => s.Category)
                 .Where(c => !string.IsNullOrEmpty(c))
                 .Distinct()
                 .ToList();
-            
             FilterServices();
         }
         catch (UnauthorizedAccessException)
         {
             errorMessage = "Недостаточно прав для просмотра услуг";
-            allServices = new List<ServiceModel>();
+            allServices = new();
             FilterServices();
         }
         catch (Exception ex)
         {
             errorMessage = $"Ошибка загрузки услуг: {ex.Message}";
-            Console.WriteLine($"[AllServices] LoadServices error: {ex}");
-            allServices = new List<ServiceModel>();
+            allServices = new();
             FilterServices();
         }
         finally
@@ -476,13 +572,7 @@
 
     private void FilterServices()
     {
-        if (allServices == null)
-        {
-            filteredServices = new List<ServiceModel>();
-            return;
-        }
-
-        filteredServices = allServices.Where(s =>
+        filteredServices = (allServices ?? new()).Where(s =>
             (string.IsNullOrEmpty(searchTerm) ||
              (s.Name != null && s.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
              (s.Description != null && s.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
@@ -517,13 +607,110 @@
     private void ViewService(ServiceModel service)
     {
         selectedService = service;
-        showModal = true;
+        showViewModal = true;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingService = null;
+        editModel = new ServiceModel { IsActive = true, Duration = 1 };
+        showEditModal = true;
+    }
+
+    private void EditService(ServiceModel service)
+    {
+        editingService = service;
+        editModel = new ServiceModel
+        {
+            Id = service.Id,
+            Name = service.Name,
+            Description = service.Description,
+            Price = service.Price,
+            Duration = service.Duration,
+            Category = service.Category,
+            IsActive = service.IsActive,
+            ExecutorId = service.ExecutorId
+        };
+        showEditModal = true;
+    }
+
+    private async Task SaveService()
+    {
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+                ServiceService.SetToken(token);
+
+            if (editingService == null)
+            {
+                var createModel = new CreateServiceModel
+                {
+                    Name = editModel.Name,
+                    Description = editModel.Description,
+                    Price = editModel.Price,
+                    Duration = editModel.Duration,
+                    Category = editModel.Category,
+                    IsActive = editModel.IsActive,
+                    ExecutorId = editModel.ExecutorId
+                };
+                var created = await ServiceService.CreateAsync(createModel);
+                successMessage = created != null ? "Услуга успешно создана" : "";
+                errorMessage = created == null ? "Ошибка при создании услуги" : "";
+            }
+            else
+            {
+                var updated = await ServiceService.UpdateAsync(editModel);
+                successMessage = updated != null ? "Услуга успешно обновлена" : "";
+                errorMessage = updated == null ? "Ошибка при обновлении услуги" : "";
+            }
+
+            CloseModal();
+            await LoadServices();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка сохранения: {ex.Message}";
+        }
+    }
+
+    private async Task ConfirmDelete(ServiceModel service)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Удалить услугу '{service.Name}'?");
+        if (confirmed)
+        {
+            try
+            {
+                var token = await TokenStorage.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                    ServiceService.SetToken(token);
+
+                var success = await ServiceService.DeleteAsync(service.Id);
+                if (success)
+                {
+                    successMessage = "Услуга успешно удалена";
+                    await LoadServices();
+                }
+                else
+                {
+                    errorMessage = "Ошибка при удалении услуги";
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Ошибка при удалении: {ex.Message}";
+            }
+            StateHasChanged();
+        }
     }
 
     private void CloseModal()
     {
-        showModal = false;
+        showViewModal = false;
+        showEditModal = false;
         selectedService = null;
+        editingService = null;
     }
 }
 

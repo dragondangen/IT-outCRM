@@ -1,5 +1,6 @@
 using IT_outCRM.Application.Interfaces;
 using IT_outCRM.Application.Interfaces.Repositories;
+using IT_outCRM.Infrastructure.Interceptors;
 using IT_outCRM.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -13,9 +14,15 @@ namespace IT_outCRM.Infrastructure
             this IServiceCollection services, 
             IConfiguration configuration)
         {
-            // DbContext
-            services.AddDbContext<CrmDbContext>(options =>
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            services.AddScoped<AuditSaveChangesInterceptor>();
+
+            services.AddDbContext<CrmDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                var interceptor = sp.GetService<AuditSaveChangesInterceptor>();
+                if (interceptor != null)
+                    options.AddInterceptors(interceptor);
+            });
 
             // Unit of Work
             services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -31,6 +38,9 @@ namespace IT_outCRM.Infrastructure
             services.AddScoped<IContactPersonRepository, ContactPersonRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IServiceRepository, ServiceRepository>();
+            services.AddScoped<IDealRepository, DealRepository>();
+            services.AddScoped<IDealMessageRepository, DealMessageRepository>();
+            services.AddScoped<INotificationRepository, NotificationRepository>();
 
             return services;
         }

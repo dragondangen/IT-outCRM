@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using IT_outCRM.Blazor.Models;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
@@ -9,15 +10,18 @@ namespace IT_outCRM.Blazor.Services
         private readonly HttpClient _httpClient;
         private readonly ITokenStorage _tokenStorage;
         private readonly AuthenticationStateProvider _authStateProvider;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             HttpClient httpClient, 
             ITokenStorage tokenStorage,
-            AuthenticationStateProvider authStateProvider)
+            AuthenticationStateProvider authStateProvider,
+            ILogger<AuthService> logger)
         {
             _httpClient = httpClient;
             _tokenStorage = tokenStorage;
             _authStateProvider = authStateProvider;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -33,49 +37,22 @@ namespace IT_outCRM.Blazor.Services
         {
             try
             {
-                Console.WriteLine($"=== LOGIN START ===");
-                Console.WriteLine($"Username: {model.Username}");
-                Console.WriteLine($"API URL: {_httpClient.BaseAddress}api/auth/login");
-                
                 var response = await _httpClient.PostAsJsonAsync("api/auth/login", model);
-                
-                Console.WriteLine($"Response Status: {response.StatusCode}");
                 
                 if (response.IsSuccessStatusCode)
                 {
                     var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                    Console.WriteLine($"Token received: {!string.IsNullOrEmpty(authResponse?.Token)}");
                     
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
-                        Console.WriteLine($"Setting token: {authResponse.Token.Substring(0, Math.Min(10, authResponse.Token.Length))}...");
-                        Console.WriteLine($"Token length: {authResponse.Token.Length}");
-                        
-                        // Сохраняем токен
                         await _tokenStorage.SetTokenAsync(authResponse.Token);
-                        
-                        // Даем время на сохранение в localStorage
                         await Task.Delay(200);
                         
-                        // Verify token was set - проверяем несколько раз
-                        string? storedToken = null;
                         for (int i = 0; i < 3; i++)
                         {
-                            storedToken = await _tokenStorage.GetTokenAsync();
-                            if (storedToken == authResponse.Token)
-                            {
-                                Console.WriteLine($"Token stored verification: SUCCESS (attempt {i + 1})");
-                                break;
-                            }
-                            Console.WriteLine($"Token stored verification: FAILURE (attempt {i + 1}), retrying...");
+                            var storedToken = await _tokenStorage.GetTokenAsync();
+                            if (storedToken == authResponse.Token) break;
                             await Task.Delay(100);
-                        }
-                        
-                        if (storedToken != authResponse.Token)
-                        {
-                            Console.WriteLine($"CRITICAL: Token verification FAILED after 3 attempts!");
-                            Console.WriteLine($"Expected: {authResponse.Token.Substring(0, Math.Min(20, authResponse.Token.Length))}...");
-                            Console.WriteLine($"Got: {(storedToken != null ? storedToken.Substring(0, Math.Min(20, storedToken.Length)) : "NULL")}...");
                         }
 
                         if (_authStateProvider is CustomAuthenticationStateProvider customProvider)
@@ -83,43 +60,15 @@ namespace IT_outCRM.Blazor.Services
                             customProvider.NotifyAuthenticationStateChanged();
                         }
                         
-                        Console.WriteLine($"=== LOGIN SUCCESS ===");
                         return authResponse;
                     }
                 }
-                else
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"Error response status: {response.StatusCode}");
-                    Console.WriteLine($"Error response content: {errorContent}");
-                    
-                    // Пробуем прочитать как ProblemDetails или просто текст
-                    try
-                    {
-                        var problemDetails = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-                        if (problemDetails.TryGetProperty("detail", out var detail))
-                        {
-                            Console.WriteLine($"Error detail: {detail.GetString()}");
-                        }
-                        if (problemDetails.TryGetProperty("title", out var title))
-                        {
-                            Console.WriteLine($"Error title: {title.GetString()}");
-                        }
-                    }
-                    catch
-                    {
-                        Console.WriteLine($"Error response (raw): {errorContent}");
-                    }
-                }
                 
-                Console.WriteLine($"=== LOGIN FAILED ===");
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"=== LOGIN EXCEPTION ===");
-                Console.WriteLine($"Error: {ex.Message}");
-                Console.WriteLine($"Stack: {ex.StackTrace}");
+                _logger.LogWarning(ex, "Login failed");
                 return null;
             }
         }
@@ -128,15 +77,6 @@ namespace IT_outCRM.Blazor.Services
         {
             try
             {
-                Console.WriteLine($"=== REGISTER START ===");
-                Console.WriteLine($"Username: {model.Username}");
-                Console.WriteLine($"Email: {model.Email}");
-                Console.WriteLine($"Role: {model.Role}");
-                Console.WriteLine($"Company: {model.CompanyName}");
-                Console.WriteLine($"UserType: {model.UserType}");
-                Console.WriteLine($"API URL: {_httpClient.BaseAddress}api/auth/register");
-                
-                // Конвертируем UI модель в DTO для backend
                 var registerDto = new RegisterDto
                 {
                     Username = model.Username,
@@ -151,14 +91,11 @@ namespace IT_outCRM.Blazor.Services
                 };
 
                 var response = await _httpClient.PostAsJsonAsync("api/auth/register", registerDto);
-                
-                Console.WriteLine($"Response Status: {response.StatusCode}");
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                    Console.WriteLine($"Token received: {!string.IsNullOrEmpty(authResponse?.Token)}");
-                    
+
                     if (authResponse != null && !string.IsNullOrEmpty(authResponse.Token))
                     {
                         await _tokenStorage.SetTokenAsync(authResponse.Token);
@@ -168,16 +105,12 @@ namespace IT_outCRM.Blazor.Services
                             customProvider.NotifyAuthenticationStateChanged();
                         }
                         
-                        Console.WriteLine($"=== REGISTER SUCCESS ===");
                         return authResponse;
                     }
                 }
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"Error response: {errorContent}");
-                    
-                    // Выбрасываем исключение с понятным сообщением
                     if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
                     {
                         throw new InvalidOperationException("Пользователь с таким именем или email уже существует. Попробуйте другие данные.");
@@ -188,15 +121,19 @@ namespace IT_outCRM.Blazor.Services
                     }
                 }
                 
-                Console.WriteLine($"=== REGISTER FAILED ===");
                 return null;
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new InvalidOperationException($"Сервер недоступен. Попробуйте позже. ({ex.Message})");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"=== REGISTER EXCEPTION ===");
-                Console.WriteLine($"Error: {ex.Message}");
-                Console.WriteLine($"Stack: {ex.StackTrace}");
-                return null;
+                throw new InvalidOperationException($"Ошибка регистрации: {ex.Message}");
             }
         }
 
@@ -232,14 +169,12 @@ namespace IT_outCRM.Blazor.Services
                 }
                 else
                 {
-                    var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[AuthService] Failed to get users: {error}");
                     return new List<UserModel>();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AuthService] Exception getting users: {ex.Message}");
+                _logger.LogWarning(ex, "Failed to fetch users list");
                 return new List<UserModel>();
             }
         }
@@ -256,11 +191,7 @@ namespace IT_outCRM.Blazor.Services
                 throw new InvalidOperationException(error);
             }
             catch (InvalidOperationException) { throw; }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Exception updating user: {ex.Message}");
-                return null;
-            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to update user {UserId}", userId); return null; }
         }
 
         public async Task<UserModel?> ToggleUserActiveAsync(Guid userId)
@@ -272,11 +203,7 @@ namespace IT_outCRM.Blazor.Services
                     return await response.Content.ReadFromJsonAsync<UserModel>();
                 return null;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Exception toggling user active: {ex.Message}");
-                return null;
-            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to toggle user {UserId}", userId); return null; }
         }
 
         public async Task<bool> DeleteUserAsync(Guid userId)
@@ -286,11 +213,7 @@ namespace IT_outCRM.Blazor.Services
                 var response = await _httpClient.DeleteAsync($"api/auth/users/{userId}");
                 return response.IsSuccessStatusCode;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Exception deleting user: {ex.Message}");
-                return false;
-            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete user {UserId}", userId); return false; }
         }
 
         public async Task<UserModel?> GetCurrentUserAsync()
@@ -305,27 +228,14 @@ namespace IT_outCRM.Blazor.Services
                 }
                 
                 var response = await _httpClient.GetAsync("api/auth/me");
-                Console.WriteLine($"[AuthService] GetCurrentUserAsync response status: {response.StatusCode}");
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    var user = await response.Content.ReadFromJsonAsync<UserModel>();
-                    Console.WriteLine($"[AuthService] GetCurrentUserAsync success: {user?.Username ?? "null"}");
-                    return user;
+                    return await response.Content.ReadFromJsonAsync<UserModel>();
                 }
-                else
-                {
-                    var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[AuthService] Failed to get current user: {response.StatusCode} - {error}");
-                    return null;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Exception getting current user: {ex.Message}");
-                Console.WriteLine($"[AuthService] StackTrace: {ex.StackTrace}");
                 return null;
             }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to get current user"); return null; }
         }
     }
 }

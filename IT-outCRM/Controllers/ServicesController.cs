@@ -1,14 +1,13 @@
+using System.Security.Claims;
 using IT_outCRM.Application.DTOs.Common;
 using IT_outCRM.Application.DTOs.Service;
+using IT_outCRM.Application.Interfaces;
 using IT_outCRM.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IT_outCRM.Controllers
 {
-    /// <summary>
-    /// Контроллер для управления услугами
-    /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     [Produces("application/json")]
@@ -16,11 +15,13 @@ namespace IT_outCRM.Controllers
     public class ServicesController : BaseController
     {
         private readonly IServiceService _serviceService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public ServicesController(IServiceService serviceService, ILogger<ServicesController> logger)
+        public ServicesController(IServiceService serviceService, IUnitOfWork unitOfWork, ILogger<ServicesController> logger)
             : base(logger)
         {
             _serviceService = serviceService;
+            _unitOfWork = unitOfWork;
         }
 
         /// <summary>
@@ -36,6 +37,35 @@ namespace IT_outCRM.Controllers
         {
             var services = await _serviceService.GetAllAsync();
             return Ok(services);
+        }
+
+        [HttpGet("my-services")]
+        [ProducesResponseType(typeof(IEnumerable<ServiceDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ServiceDto>>> GetMyServices()
+        {
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (string.IsNullOrEmpty(userEmail))
+                return Ok(Enumerable.Empty<ServiceDto>());
+
+            try
+            {
+                var contact = await _unitOfWork.ContactPersons.GetByEmailAsync(userEmail);
+                if (contact == null) return Ok(Enumerable.Empty<ServiceDto>());
+
+                var company = await _unitOfWork.Companies.GetByContactPersonIdAsync(contact.Id);
+                if (company == null) return Ok(Enumerable.Empty<ServiceDto>());
+
+                var executor = await _unitOfWork.Executors.GetByCompanyIdAsync(company.Id);
+                if (executor == null) return Ok(Enumerable.Empty<ServiceDto>());
+
+                var services = await _serviceService.GetServicesByExecutorAsync(executor.Id);
+                return Ok(services);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error getting my services for {Email}", userEmail);
+                return Ok(Enumerable.Empty<ServiceDto>());
+            }
         }
 
         /// <summary>

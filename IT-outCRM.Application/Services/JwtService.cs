@@ -4,6 +4,7 @@ using System.Text;
 using IT_outCRM.Application.Interfaces.Services;
 using IT_outCRM.Domain.Entity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace IT_outCRM.Application.Services
@@ -11,10 +12,12 @@ namespace IT_outCRM.Application.Services
     public class JwtService : IJwtService
     {
         private readonly IConfiguration _configuration;
+        private readonly ILogger<JwtService> _logger;
 
-        public JwtService(IConfiguration configuration)
+        public JwtService(IConfiguration configuration, ILogger<JwtService> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
 
         public string GenerateToken(User user)
@@ -57,8 +60,9 @@ namespace IT_outCRM.Application.Services
                     return userId;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Failed to parse JWT token");
                 return null;
             }
 

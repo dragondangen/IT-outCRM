@@ -143,15 +143,65 @@
                                     <span>@FormatDateTime(currentUser.LastLoginAt.Value)</span>
                                 </div>
                             }
-                            else if (currentUser != null)
-                            {
-                                <div class="info-item">
-                                    <label>Последний вход:</label>
-                                    <span class="text-muted">Еще не входил</span>
-                                </div>
-                            }
                         </div>
                     </div>
+
+                    @if (profileInfo != null && !string.IsNullOrEmpty(profileInfo.CompanyName))
+                    {
+                        <div class="profile-card">
+                            <h5 class="card-title">
+                                <i class="bi bi-building"></i> Компания
+                            </h5>
+                            <div class="info-list">
+                                <div class="info-item">
+                                    <label>Название:</label>
+                                    <span><strong>@profileInfo.CompanyName</strong></span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(profileInfo.CompanyInn))
+                                {
+                                    <div class="info-item">
+                                        <label>ИНН:</label>
+                                        <span>@profileInfo.CompanyInn</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(profileInfo.CompanyLegalForm))
+                                {
+                                    <div class="info-item">
+                                        <label>Форма:</label>
+                                        <span>@profileInfo.CompanyLegalForm</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(profileInfo.AccountName))
+                                {
+                                    <div class="info-item">
+                                        <label>Аккаунт:</label>
+                                        <span>@profileInfo.AccountName</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(profileInfo.AccountStatus))
+                                {
+                                    <div class="info-item">
+                                        <label>Статус аккаунта:</label>
+                                        <span class="badge @(profileInfo.AccountStatus == "Активный" ? "status-active" : "status-new")">@profileInfo.AccountStatus</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(profileInfo.ContactPhone) && profileInfo.ContactPhone != "-")
+                                {
+                                    <div class="info-item">
+                                        <label>Телефон:</label>
+                                        <span>@profileInfo.ContactPhone</span>
+                                    </div>
+                                }
+                                @if (profileInfo.ExecutorId.HasValue)
+                                {
+                                    <div class="info-item">
+                                        <label>Выполнено заказов:</label>
+                                        <span><strong>@profileInfo.CompletedOrders</strong></span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
 
                     <div class="profile-card">
                         <h5 class="card-title">
@@ -161,12 +211,9 @@
                             <button class="btn btn-outline-primary" disabled>
                                 <i class="bi bi-lock"></i> Сменить пароль
                             </button>
-                            <button class="btn btn-outline-secondary" disabled>
-                                <i class="bi bi-shield-lock"></i> Настройки безопасности
-                            </button>
                         </div>
                         <p class="text-muted small mt-3 mb-0">
-                            <i class="bi bi-info-circle"></i> Функции скоро будут доступны
+                            <i class="bi bi-info-circle"></i> Функция скоро будет доступна
                         </p>
                     </div>
 
@@ -176,11 +223,10 @@
                             <h5 class="card-title">
                                 <i class="bi bi-shield-fill-exclamation"></i> Администраторские права
                             </h5>
-                            <p>У вас есть полный доступ ко всем функциям системы:</p>
                             <ul class="permissions-list">
                                 <li><i class="bi bi-check-circle"></i> Управление всеми заказами</li>
-                                <li><i class="bi bi-check-circle"></i> Управление всеми клиентами</li>
-                                <li><i class="bi bi-check-circle"></i> Доступ ко всей статистике</li>
+                                <li><i class="bi bi-check-circle"></i> Управление клиентами и исполнителями</li>
+                                <li><i class="bi bi-check-circle"></i> Статистика и отчёты</li>
                                 <li><i class="bi bi-check-circle"></i> Управление пользователями</li>
                             </ul>
                         </div>
@@ -191,12 +237,10 @@
                             <h5 class="card-title">
                                 <i class="bi bi-briefcase"></i> Права менеджера
                             </h5>
-                            <p>Вы можете:</p>
                             <ul class="permissions-list">
-                                <li><i class="bi bi-check-circle"></i> Создавать и редактировать заказы</li>
-                                <li><i class="bi bi-check-circle"></i> Управлять клиентами</li>
-                                <li><i class="bi bi-check-circle"></i> Просматривать статистику</li>
-                                <li><i class="bi bi-check-circle"></i> Работать с отчетами</li>
+                                <li><i class="bi bi-check-circle"></i> Создание и редактирование заказов</li>
+                                <li><i class="bi bi-check-circle"></i> Управление клиентами</li>
+                                <li><i class="bi bi-check-circle"></i> Просмотр статистики</li>
                             </ul>
                         </div>
                     }
@@ -206,64 +250,42 @@
                             <h5 class="card-title">
                                 <i class="bi bi-tools"></i> Права исполнителя
                             </h5>
-                            <p>Вы можете:</p>
                             <ul class="permissions-list">
-                                <li><i class="bi bi-check-circle"></i> Просматривать доступные заказы</li>
-                                <li><i class="bi bi-check-circle"></i> Брать заказы в работу</li>
-                                <li><i class="bi bi-check-circle"></i> Управлять своими заказами</li>
+                                <li><i class="bi bi-check-circle"></i> Просмотр и взятие заказов</li>
+                                <li><i class="bi bi-check-circle"></i> Управление своими услугами</li>
+                                <li><i class="bi bi-check-circle"></i> Отслеживание своих заказов</li>
                             </ul>
-                            <button class="btn btn-primary btn-sm mt-3" @onclick='() => Navigation.NavigateTo("/executor/my-orders")'>
-                                <i class="bi bi-list-check"></i> Мои заказы
-                            </button>
+                            <div class="d-flex gap-2 mt-3">
+                                <button class="btn btn-primary btn-sm" @onclick='() => Navigation.NavigateTo("/executor/my-orders")'>
+                                    <i class="bi bi-list-check"></i> Мои заказы
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" @onclick='() => Navigation.NavigateTo("/my-services")'>
+                                    <i class="bi bi-grid-3x3-gap"></i> Мои услуги
+                                </button>
+                            </div>
                         </div>
                     }
                     else
                     {
                         <div class="profile-card client-card">
                             <h5 class="card-title">
-                                <i class="bi bi-person"></i> Клиентская учетная запись
+                                <i class="bi bi-person"></i> Клиентская учётная запись
                             </h5>
-                            <p>Вы можете:</p>
                             <ul class="permissions-list">
-                                <li><i class="bi bi-check-circle"></i> Просматривать свои заказы</li>
-                                <li><i class="bi bi-check-circle"></i> Создавать новые заказы</li>
-                                <li><i class="bi bi-check-circle"></i> Отслеживать статус заказов</li>
+                                <li><i class="bi bi-check-circle"></i> Создание и отслеживание заказов</li>
+                                <li><i class="bi bi-check-circle"></i> Каталог услуг исполнителей</li>
+                                <li><i class="bi bi-check-circle"></i> Управление профилем</li>
                             </ul>
-                            <button class="btn btn-primary btn-sm mt-3" @onclick='() => Navigation.NavigateTo("/my-orders")'>
-                                <i class="bi bi-box-seam"></i> Мои заказы
-                            </button>
+                            <div class="d-flex gap-2 mt-3">
+                                <button class="btn btn-primary btn-sm" @onclick='() => Navigation.NavigateTo("/my-orders")'>
+                                    <i class="bi bi-box-seam"></i> Мои заказы
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" @onclick='() => Navigation.NavigateTo("/services-catalog")'>
+                                    <i class="bi bi-shop"></i> Каталог услуг
+                                </button>
+                            </div>
                         </div>
                     }
-
-                    <div class="profile-card">
-                        <h5 class="card-title">
-                            <i class="bi bi-clock-history"></i> Активность
-                        </h5>
-                        <div class="activity-list">
-                            <div class="activity-item">
-                                <i class="bi bi-check-circle text-success"></i>
-                                <span>Успешный вход в систему</span>
-                            </div>
-                            @if (currentUser != null && currentUser.LastLoginAt.HasValue)
-                            {
-                                <div class="activity-item">
-                                    <i class="bi bi-clock text-info"></i>
-                                    <span>Последний вход: @FormatDateTime(currentUser.LastLoginAt.Value)</span>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="activity-item">
-                                    <i class="bi bi-clock text-muted"></i>
-                                    <span class="text-muted">Это первый вход в систему</span>
-                                </div>
-                            }
-                            <div class="activity-item">
-                                <i class="bi bi-info-circle text-info"></i>
-                                <span>История активности скоро будет доступна</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             }
         </Authorized>
@@ -614,6 +636,11 @@
         color: #0f5132;
     }
 
+    .status-new {
+        background: #cfe2ff;
+        color: #084298;
+    }
+
     .security-actions {
         display: flex;
         flex-direction: column;
@@ -733,6 +760,7 @@
 
 @code {
     private UserModel? currentUser;
+    private ProfileInfo? profileInfo;
     private bool isLoadingUser = true;
     private bool isUploading = false;
     private string errorMessage = string.Empty;
@@ -768,22 +796,11 @@
         try
         {
             currentUser = await AuthService.GetCurrentUserAsync();
-            if (currentUser != null)
-            {
-                Console.WriteLine($"[Profile] User loaded: {currentUser.Username}");
-                Console.WriteLine($"[Profile] LastLoginAt: {currentUser.LastLoginAt}");
-                Console.WriteLine($"[Profile] LastLoginAt HasValue: {currentUser.LastLoginAt.HasValue}");
-                if (currentUser.LastLoginAt.HasValue)
-                {
-                    Console.WriteLine($"[Profile] LastLoginAt Value: {currentUser.LastLoginAt.Value}");
-                    Console.WriteLine($"[Profile] LastLoginAt Kind: {currentUser.LastLoginAt.Value.Kind}");
-                }
-            }
+            try { profileInfo = await ProfileService.GetMyInfoAsync(); } catch { }
         }
         catch (Exception ex)
         {
             errorMessage = $"Ошибка загрузки профиля: {ex.Message}";
-            Console.WriteLine($"[Profile] Error loading user: {ex.Message}");
         }
         finally
         {
@@ -845,7 +862,6 @@
         catch (Exception ex)
         {
             errorMessage = $"Ошибка при загрузке аватара: {ex.Message}";
-            Console.WriteLine($"[Profile] Error uploading avatar: {ex.Message}");
         }
         finally
         {
@@ -887,7 +903,6 @@
         catch (Exception ex)
         {
             errorMessage = $"Ошибка при удалении аватара: {ex.Message}";
-            Console.WriteLine($"[Profile] Error deleting avatar: {ex.Message}");
         }
     }
 
@@ -896,18 +911,13 @@
         if (string.IsNullOrEmpty(avatarUrl))
             return string.Empty;
 
-        // Если URL уже полный, возвращаем как есть
         if (avatarUrl.StartsWith("http://") || avatarUrl.StartsWith("https://"))
             return avatarUrl;
 
-        // Получаем базовый URL API из конфигурации
-        var apiBaseUrl = Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5295";
-        
-        // Если avatarUrl начинается с /, используем его напрямую
         if (avatarUrl.StartsWith("/"))
-            return $"{apiBaseUrl.TrimEnd('/')}{avatarUrl}";
-        
-        return $"{apiBaseUrl.TrimEnd('/')}/{avatarUrl}";
+            return avatarUrl;
+
+        return $"/{avatarUrl}";
     }
 
     private string GetUserRole(System.Security.Claims.ClaimsPrincipal user)

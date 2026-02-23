@@ -1,15 +1,18 @@
 using IT_outCRM.Blazor.Models;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 
 namespace IT_outCRM.Blazor.Services
 {
     public class CompanyService : ICompanyService
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<CompanyService> _logger;
 
-        public CompanyService(HttpClient httpClient)
+        public CompanyService(HttpClient httpClient, ILogger<CompanyService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public void SetToken(string token)
@@ -30,19 +33,18 @@ namespace IT_outCRM.Blazor.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[CompanyService] GetAll failed: {response.StatusCode} - {error}");
-                    // Для отладки можно вернуть пустой список, но лучше бы знать, что ошибка
+                    _logger.LogWarning("GetAll failed: {StatusCode} - {Error}", response.StatusCode, error);
                     throw new Exception($"Ошибка загрузки ({response.StatusCode}): {error}");
                 }
 
                 var result = await response.Content.ReadFromJsonAsync<List<CompanyModel>>();
-                Console.WriteLine($"[CompanyService] Loaded {result?.Count ?? 0} companies");
+                _logger.LogDebug("Loaded {Count} companies", result?.Count ?? 0);
                 return result ?? new List<CompanyModel>();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CompanyService] Exception loading companies: {ex.Message}");
-                throw; // Пробрасываем ошибку, чтобы UI её показал
+                _logger.LogWarning(ex, "Exception loading companies");
+                throw;
             }
         }
 
@@ -54,7 +56,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CompanyService] Error getting company {id}: {ex.Message}");
+                _logger.LogWarning(ex, "Error getting company {Id}", id);
                 return null;
             }
         }
@@ -63,11 +65,9 @@ namespace IT_outCRM.Blazor.Services
         {
             try
             {
-                Console.WriteLine($"[CompanyService] Creating company: {model.Name}");
+                _logger.LogDebug("Creating company: {Name}", model.Name);
                 var response = await _httpClient.PostAsJsonAsync("api/companies", model);
-                
-                Console.WriteLine($"[CompanyService] Create Status: {response.StatusCode}");
-                
+                _logger.LogDebug("Create Status: {StatusCode}", response.StatusCode);
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<CompanyModel>();
@@ -75,13 +75,13 @@ namespace IT_outCRM.Blazor.Services
                 else 
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[CompanyService] Create Error Body: {error}");
+                    _logger.LogWarning("Create Error Body: {Error}", error);
                     throw new Exception($"Ошибка сервера ({response.StatusCode}): {error}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CompanyService] Error creating company: {ex.Message}");
+                _logger.LogWarning(ex, "Error creating company");
                 throw;
             }
         }
@@ -105,7 +105,7 @@ namespace IT_outCRM.Blazor.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CompanyService] Error updating company: {ex.Message}");
+                _logger.LogWarning(ex, "Error updating company");
                 throw;
             }
         }
@@ -118,13 +118,13 @@ namespace IT_outCRM.Blazor.Services
                 if (!response.IsSuccessStatusCode)
                 {
                      var error = await response.Content.ReadAsStringAsync();
-                     Console.WriteLine($"[CompanyService] Delete failed: {error}");
+                     _logger.LogWarning("Delete failed: {Error}", error);
                 }
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CompanyService] Error deleting company: {ex.Message}");
+                _logger.LogWarning(ex, "Error deleting company");
                 return false;
             }
         }

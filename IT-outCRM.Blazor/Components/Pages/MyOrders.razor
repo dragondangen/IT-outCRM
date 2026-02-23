@@ -99,7 +99,7 @@
                     <i class="bi bi-cash"></i>
                     <div>
                         <label>Общая сумма</label>
-                        <strong>@myOrders.Sum(o => o.Price).ToString("C")</strong>
+                        <strong>@myOrders.Sum(o => o.Price).ToString("#,##0") ₽</strong>
                     </div>
                 </div>
             </div>
@@ -122,7 +122,7 @@
                                 </div>
                                 <div class="info-item price">
                                     <i class="bi bi-cash"></i>
-                                    <span>@order.Price.ToString("C")</span>
+                                    <span>@order.Price.ToString("#,##0") ₽</span>
                                 </div>
                             </div>
                         </div>
