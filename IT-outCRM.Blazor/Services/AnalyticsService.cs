@@ -20,6 +20,15 @@ namespace IT_outCRM.Blazor.Services
             _logger = logger;
         }
 
+        public void SetToken(string token)
+        {
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+
         public async Task<DashboardAnalyticsModel?> GetDashboardAnalyticsAsync()
         {
             for (int attempt = 1; attempt <= 3; attempt++)

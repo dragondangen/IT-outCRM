@@ -86,11 +86,28 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (!firstRender) return;
+
+        await Task.Delay(300);
+
+        string? token = null;
+        for (int i = 0; i < 3; i++)
         {
-            await LoadData();
-            StateHasChanged();
+            token = await TokenStorage.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token)) break;
+            await Task.Delay(500);
         }
+
+        if (string.IsNullOrEmpty(token))
+        {
+            try { Navigation.NavigateTo("/login", forceLoad: true); }
+            catch { }
+            return;
+        }
+
+        AnalyticsService.SetToken(token);
+        await LoadData();
+        StateHasChanged();
     }
 
     private async Task LoadData()
